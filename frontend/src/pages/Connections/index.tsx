@@ -24,9 +24,13 @@ export default function Connections() {
   useEffect(() => { load() }, [])
 
   const handleDelete = async (id: number) => {
-    await deleteConnection(id)
-    message.success('删除成功')
-    load()
+    try {
+      await deleteConnection(id)
+      message.success('删除成功')
+      load()
+    } catch (e: any) {
+      message.error(e.message || '删除失败')
+    }
   }
 
   const columns = [
@@ -74,7 +78,7 @@ export default function Connections() {
   ]
 
   return (
-    <Card
+    <Card className="ghost-card"
       title="连接管理"
       extra={
         <Button

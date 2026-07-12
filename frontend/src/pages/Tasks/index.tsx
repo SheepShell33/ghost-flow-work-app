@@ -1,13 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import {
-  Card, Table, Button, Space, Modal, Tag, message,
-  Popconfirm, Typography, Spin, Alert, Switch,
+  Card, Table, Button, Space, Modal, Tag, message, Popconfirm, Typography, Switch, Tooltip, Alert, Input, Row, Col, Select,
 } from 'antd'
 import {
-  PlusOutlined, PlayCircleOutlined, EyeOutlined,
-  DownloadOutlined,
+  PlusOutlined, PlayCircleOutlined, EyeOutlined, DownloadOutlined, SearchOutlined,
 } from '@ant-design/icons'
-import { listTasks, deleteTask, runTask, previewTask, exportTaskCsv, toggleTask } from '../../api/tasks'
+import { listTasks, deleteTask, runTask, previewTask, exportTaskCsv, toggleTask, downloadTaskCsv } from '../../api/tasks'
 import type { TaskItem, RunResult, PreviewData } from '../../api/tasks'
 import TaskForm from './TaskForm'
 import DataPreview from './DataPreview'
@@ -17,6 +15,8 @@ const { Text } = Typography
 export default function Tasks() {
   const [data, setData] = useState<TaskItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [searchQ, setSearchQ] = useState('')
+  const [searchTag, setSearchTag] = useState<string[]>([])
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<TaskItem | null>(null)
   const [previewOpen, setPreviewOpen] = useState(false)
@@ -25,21 +25,28 @@ export default function Tasks() {
   const [resultOpen, setResultOpen] = useState(false)
   const [resultData, setResultData] = useState<RunResult | null>(null)
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true)
     try {
-      setData(await listTasks())
+      const params: { q?: string; tag?: string } = {}
+      if (searchQ) params.q = searchQ
+      if (searchTag.length > 0) params.tag = searchTag[searchTag.length - 1]
+      setData(await listTasks(params))
     } finally {
       setLoading(false)
     }
-  }
+  }, [searchQ, searchTag])
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [load])
 
   const handleDelete = async (id: number) => {
-    await deleteTask(id)
-    message.success('删除成功')
-    load()
+    try {
+      await deleteTask(id)
+      message.success('删除成功')
+      load()
+    } catch (e: any) {
+      message.error(e.message || '删除失败')
+    }
   }
 
   const handleToggle = async (task: TaskItem) => {
@@ -58,11 +65,7 @@ export default function Tasks() {
       const result = await runTask(task.id)
       setResultData(result)
       setResultOpen(true)
-      if (result.status === 'success') {
-        message.success('执行成功')
-      } else {
-        message.error('执行失败')
-      }
+      message.success(result.status === 'success' ? '执行成功' : '执行失败')
     } catch (e: any) {
       message.error(e.message)
     } finally {
@@ -95,29 +98,46 @@ export default function Tasks() {
     }
   }
 
+  const allTags = [...new Set(data.flatMap((t) => (t.tags ? t.tags.split(',').map((s) => s.trim()) : [])))]
+
+  const getPrereqName = (id: number | null) => {
+    if (!id) return '-'
+    const task = data.find((t) => t.id === id)
+    return task ? `#${id} ${task.name}` : `#${id} (已删除)`
+  }
+
   const columns = [
     { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
-    { title: '名称', dataIndex: 'name', key: 'name' },
+    { title: '名称', dataIndex: 'name', key: 'name', ellipsis: true },
     {
-      title: '类型',
-      dataIndex: 'type',
-      key: 'type',
+      title: '标签', key: 'tags', width: 160, ellipsis: true,
+      render: (_: unknown, r: TaskItem) => r.tags
+        ? r.tags.split(',').map((t) => t.trim()).filter(Boolean).map((t) => (
+          <Tag key={t} style={{ marginBottom: 2 }}>{t}</Tag>
+        ))
+        : <Text type="secondary">-</Text>,
+    },
+    {
+      title: '类型', dataIndex: 'type', key: 'type', width: 80,
       render: (t: string) => (
-        <Tag color={t === 'sql' ? 'geekblue' : 'purple'}>
-          {t === 'sql' ? 'SQL' : 'Python'}
-        </Tag>
+        <Tag color={t === 'sql' ? 'geekblue' : 'purple'}>{t === 'sql' ? 'SQL' : 'Python'}</Tag>
       ),
     },
     {
-      title: '调度',
-      key: 'enabled',
+      title: '前置任务', key: 'prerequisite', width: 140, ellipsis: true,
+      render: (_: unknown, r: TaskItem) => {
+        if (!r.prerequisite_task_id) return <Text type="secondary">无</Text>
+        return <Tag>{getPrereqName(r.prerequisite_task_id)}</Tag>
+      },
+    },
+    {
+      title: '调度', key: 'enabled', width: 120,
       render: (_: unknown, record: TaskItem) => (
         record.schedule_config ? (
           <Space>
-            <Switch checked={record.enabled} size="small"
-              onChange={() => handleToggle(record)} />
+            <Switch checked={record.enabled} size="small" onChange={() => handleToggle(record)} />
             <Tag color={record.enabled ? 'green' : 'default'} style={{ margin: 0 }}>
-              {record.enabled ? '已启用' : '已停用'}
+              {record.enabled ? '启用' : '停用'}
             </Tag>
           </Space>
         ) : (
@@ -126,27 +146,30 @@ export default function Tasks() {
       ),
     },
     {
-      title: '操作', key: 'action', width: 320,
+      title: '操作', key: 'action', width: 400,
       render: (_: unknown, record: TaskItem) => (
         <Space size="small" wrap>
-          <Button type="link" icon={<PlayCircleOutlined />} onClick={() => handleRun(record)}>
-            执行
-          </Button>
+          <Tooltip title="运行任务并记录">
+            <Button size="small" icon={<PlayCircleOutlined />} onClick={() => handleRun(record)}>运行</Button>
+          </Tooltip>
           {record.type === 'sql' && (
-            <Button type="link" icon={<EyeOutlined />} onClick={() => handlePreview(record)}>
-              预览
-            </Button>
+            <Tooltip title="预览前100行数据">
+              <Button size="small" icon={<EyeOutlined />} onClick={() => handlePreview(record)}>预览</Button>
+            </Tooltip>
           )}
           {record.type === 'sql' && record.output_path && (
-            <Button type="link" icon={<DownloadOutlined />} onClick={() => handleExport(record)}>
-              导出
-            </Button>
+            <Tooltip title="导出CSV到指定路径">
+              <Button size="small" icon={<DownloadOutlined />} onClick={() => handleExport(record)}>导出</Button>
+            </Tooltip>
           )}
-          <Button type="link" onClick={() => { setEditing(record); setFormOpen(true) }}>
-            编辑
-          </Button>
+          {record.type === 'sql' && (
+            <Tooltip title="下载 CSV 到本地">
+              <Button size="small" icon={<DownloadOutlined />} onClick={() => downloadTaskCsv(record.id)}>下载</Button>
+            </Tooltip>
+          )}
+          <Button size="small" onClick={() => { setEditing(record); setFormOpen(true) }}>编辑</Button>
           <Popconfirm title="确定删除？" onConfirm={() => handleDelete(record.id)}>
-            <Button type="link" danger>删除</Button>
+            <Button size="small" danger>删除</Button>
           </Popconfirm>
         </Space>
       ),
@@ -154,7 +177,7 @@ export default function Tasks() {
   ]
 
   return (
-    <Card
+    <Card className="ghost-card"
       title="任务管理"
       extra={
         <Button type="primary" icon={<PlusOutlined />}
@@ -163,7 +186,22 @@ export default function Tasks() {
         </Button>
       }
     >
-      <Table rowKey="id" columns={columns} dataSource={data} loading={loading} pagination={false} />
+      <Row gutter={16} style={{ marginBottom: 16 }}>
+        <Col span={8}>
+          <Input prefix={<SearchOutlined />} placeholder="搜索任务名称/代码..." allowClear
+            value={searchQ} onChange={(e) => setSearchQ(e.target.value)} />
+        </Col>
+        <Col span={6}>
+          <Select mode="multiple" placeholder="按标签筛选" allowClear
+            value={searchTag}
+            onChange={(v: string[]) => setSearchTag(v)}
+            style={{ width: '100%' }}>
+            {allTags.map((t) => <Select.Option key={t} value={t}>{t}</Select.Option>)}
+          </Select>
+        </Col>
+      </Row>
+      <Table rowKey="id" columns={columns} dataSource={data} loading={loading}
+        pagination={{ pageSize: 20 }} size="middle" />
 
       <Modal title={editing ? '编辑任务' : '新建任务'} open={formOpen}
         onCancel={() => setFormOpen(false)} footer={null} destroyOnClose width={800}>
@@ -173,7 +211,7 @@ export default function Tasks() {
       <Modal title="数据预览" open={previewOpen} footer={null}
         onCancel={() => { setPreviewOpen(false); setPreviewData(null) }}
         width="80%" destroyOnClose>
-        {previewLoading ? <Spin /> : previewData && <DataPreview data={previewData} />}
+        {previewLoading ? null : previewData && <DataPreview data={previewData} />}
       </Modal>
 
       <Modal title="执行结果" open={resultOpen} footer={null}
@@ -196,8 +234,8 @@ export default function Tasks() {
                 background: '#f5f5f5', padding: 12, borderRadius: 4,
                 maxHeight: 400, overflow: 'auto', marginTop: 12,
               }}>
-                <Text>{resultData.result_preview.stdout || '(无输出)'}</Text>
-                {resultData.result_preview.stderr && (
+                <Text>{(resultData.result_preview as any).stdout || '(无输出)'}</Text>
+                {(resultData.result_preview as any).stderr && (
                   <Text type="danger">{(resultData.result_preview as any).stderr}</Text>
                 )}
               </pre>

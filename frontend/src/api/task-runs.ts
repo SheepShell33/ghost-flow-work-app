@@ -11,5 +11,8 @@ export interface TaskRunItem {
   finished_at: string | null
 }
 
-export const listTaskRuns = (taskId?: number) =>
-  client.get<TaskRunItem[]>('/task-runs', { params: taskId ? { task_id: taskId } : {} }).then((r) => r.data)
+export const listTaskRuns = (params?: { task_id?: number; page?: number; page_size?: number }) =>
+  client.get<TaskRunItem[]>('/task-runs', { params }).then((r) => r.data)
+
+export const cancelTaskRun = (runId: number) =>
+  client.post(`/execute/runs/${runId}/cancel`).then((r) => r.data)

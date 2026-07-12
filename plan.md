@@ -15,8 +15,8 @@
 
 | 层 | 技术 | 说明 |
 |---|---|---|
-| 前端 | React 18 + TypeScript + Ant Design 5 | UI 框架 |
-| 代码编辑器 | Monaco Editor | SQL / Python 编辑 |
+| 前端 | React 19 + TypeScript + Ant Design 6 | UI 框架 |
+| 代码编辑器 | 原生 TextArea（Monaco Editor 待后续集成） | SQL / Python 编辑 |
 | 后端框架 | FastAPI + Python 3.11+ | REST API |
 | ORM | SQLAlchemy 2.0 | 数据库交互 |
 | 调度引擎 | APScheduler + SQLAlchemyJobStore | Cron 任务调度 |
@@ -119,10 +119,15 @@ erDiagram
 ```
 ghost-flow-work-app/
 ├── plan.md
+├── README.md
+├── AGENTS.md
 ├── backend/
-│   ├── requirements.txt
+│   ├── pyproject.toml
+│   ├── uv.lock
 │   ├── alembic.ini
 │   ├── alembic/
+│   │   ├── env.py
+│   │   ├── script.py.mako
 │   │   └── versions/
 │   └── app/
 │       ├── __init__.py
@@ -130,7 +135,8 @@ ghost-flow-work-app/
 │       ├── core/
 │       │   ├── __init__.py
 │       │   ├── config.py             # Pydantic Settings
-│       │   └── database.py           # 引擎 & Session
+│       │   ├── database.py           # 引擎 & Session
+│       │   └── logging.py            # loguru 日志配置
 │       ├── models/
 │       │   ├── __init__.py
 │       │   ├── connection.py
@@ -148,8 +154,9 @@ ghost-flow-work-app/
 │       │       ├── __init__.py
 │       │       ├── connections.py    # /api/connections
 │       │       ├── tasks.py          # /api/tasks
+│       │       ├── schedules.py      # /api/schedules
 │       │       ├── task_runs.py      # /api/task-runs
-│       │       └── execute.py        # /api/execute (SQL/Python)
+│       │       └── execute.py        # /api/execute
 │       └── services/
 │           ├── __init__.py
 │           ├── connector/
@@ -161,9 +168,12 @@ ghost-flow-work-app/
 │           │   ├── __init__.py
 │           │   ├── sql_executor.py
 │           │   └── python_executor.py
+│           ├── scheduler.py          # APScheduler 调度管理
+│           ├── task_runner.py        # 任务执行编排
+│           ├── run_tracker.py        # 运行时任务追踪与取消
 │           ├── csv_exporter.py
 │           ├── data_preview.py
-│           └── scheduler.py
+│           └── deps_installer.py     # Python 依赖自动安装
 ├── frontend/
 │   ├── package.json
 │   ├── tsconfig.json
@@ -174,27 +184,27 @@ ghost-flow-work-app/
 │       ├── api/
 │       │   ├── client.ts
 │       │   ├── connections.ts
-│       │   └── tasks.ts
+│       │   ├── tasks.ts
+│       │   ├── execute.ts
+│       │   ├── schedules.ts
+│       │   └── task-runs.ts
 │       ├── pages/
 │       │   ├── Dashboard/
 │       │   │   └── index.tsx
 │       │   ├── Connections/
 │       │   │   ├── index.tsx
-│       │   │   ├── ConnectionForm.tsx
-│       │   │   └── types.ts
+│       │   │   └── ConnectionForm.tsx
 │       │   ├── Tasks/
 │       │   │   ├── index.tsx
 │       │   │   ├── TaskForm.tsx
-│       │   │   ├── SQLEditor.tsx
-│       │   │   ├── PythonEditor.tsx
 │       │   │   └── DataPreview.tsx
 │       │   ├── Schedules/
-│       │   │   ├── index.tsx
-│       │   │   └── CronInput.tsx
+│       │   │   └── index.tsx
 │       │   └── History/
 │       │       └── index.tsx
 │       └── components/
-│           └── AppLayout.tsx
+│           ├── AppLayout.tsx
+│           └── ErrorBoundary.tsx
 └── data/
     └── .gitkeep
 ```
@@ -212,28 +222,31 @@ graph LR
         PUT_C["PUT /api/connections/{id}<br/>更新"]
         DEL_C["DELETE /api/connections/{id}<br/>删除"]
     end
-    
+
     subgraph 任务管理
         GET_TS["GET /api/tasks<br/>列表"]
         POST_TS["POST /api/tasks<br/>新建"]
         GET_T["GET /api/tasks/{id}<br/>详情"]
         PUT_T["PUT /api/tasks/{id}<br/>更新"]
         DEL_T["DELETE /api/tasks/{id}<br/>删除"]
-        RUN_T["POST /api/tasks/{id}/run<br/>手动执行"]
+        UPL_T["POST /api/tasks/upload<br/>文件上传"]
+        TGL_T["POST /api/tasks/{id}/toggle<br/>启停调度"]
+        RUN_T["POST /api/execute/tasks/{id}/run<br/>手动执行"]
+        TST_T["POST /api/execute/tasks/{id}/test<br/>测试运行"]
     end
-    
+
     subgraph 执行与预览
-        PREV["GET /api/tasks/{id}/preview<br/>数据预览"]
-        EXPORT["POST /api/tasks/{id}/export<br/>导出CSV"]
+        PREV["GET /api/execute/tasks/{id}/preview<br/>数据预览"]
+        EXPORT["POST /api/execute/tasks/{id}/export<br/>导出CSV到服务器"]
+        DWNLD["GET /api/execute/tasks/{id}/download<br/>下载CSV"]
+        CANCEL["POST /api/execute/runs/{id}/cancel<br/>取消运行"]
         ADHOC_SQL["POST /api/execute/sql<br/>临时SQL"]
         ADHOC_PY["POST /api/execute/python<br/>临时Python"]
     end
-    
+
     subgraph 调度与历史
-        GET_SCH["GET /api/schedules<br/>调度列表"]
-        POST_SCH["POST /api/schedules<br/>创建调度"]
-        PUT_SCH["PUT /api/schedules/{id}<br/>更新调度"]
-        TGL_SCH["PATCH /api/schedules/{id}/toggle<br/>启停"]
+        GET_SCH["GET /api/schedules<br/>调度列表（只读）"]
+        STS_SCH["GET /api/schedules/status<br/>调度引擎状态"]
         RUN_HIST["GET /api/task-runs<br/>历史记录"]
         RUN_DTL["GET /api/task-runs/{id}<br/>运行详情"]
     end
@@ -316,10 +329,12 @@ graph LR
 | 任务 | 后端 | 前端 |
 |---|---|---|
 | 3.1 | APScheduler 集成 + SQLAlchemyJobStore | — |
-| 3.2 | Schedule 模型 + API（增删改启停） | 调度配置 UI |
-| 3.3 | Cron 表达式解析器 | Cron 友好输入组件 |
+| 3.2 | 任务级调度配置（cron + timezone）+ 启停 API | 调度配置 UI |
+| 3.3 | Cron 表达式透传至 `CronTrigger.from_crontab()`（未做自定义解析器） | 基础 Cron 输入框 |
 | 3.4 | 任务执行时自动记录 TaskRun | 执行历史列表 |
 | 3.5 | 调度器启动/停止/状态 API | 仪表盘概览 |
+
+说明：当前没有独立的 `Schedule` 实体，调度配置内嵌在 `Task.schedule_config` 中，启停通过 `/api/tasks/{id}/toggle` 控制，`/api/schedules` 仅提供只读列表与状态。
 
 目标：用户可配置定时任务，查看执行历史。
 
@@ -332,6 +347,11 @@ graph LR
 | 4.3 | 任务执行超时控制 |
 | 4.4 | 前端加载态、空态、错误边界 |
 | 4.5 | 仪表盘数据统计 |
+| 4.6 | Redshift IAM 认证修复 |
+| 4.7 | 运行中任务真正取消（SQL future / Python 子进程） |
+| 4.8 | 任务级并发控制 |
+| 4.9 | Alembic 数据库迁移 |
+| 4.10 | README / plan.md 文档同步 |
 
 ---
 
@@ -395,6 +415,11 @@ sequenceDiagram
 - 连接表单增加配置模板按钮（SQLite / IAM / Okta SSO 一键填入）
 - 任务表单增加连接选择为空提示
 - 运行历史完整表格展示
+- Redshift IAM 认证修复：支持 `aws_access_key_id`、`aws_secret_access_key`、`region`、`cluster_identifier`、`aws_session_token`
+- 任务真正取消：`/api/execute/runs/{id}/cancel` 可终止 Python 子进程 / SQL 执行 future
+- 任务级并发控制：同一任务调度触发与手动触发互斥
+- Alembic 数据库迁移：`alembic.ini` + baseline migration 已就位
+- 文档同步：`README.md` / `plan.md` 技术栈、目录结构、API 设计与实现一致
 
 ---
 
@@ -402,9 +427,12 @@ sequenceDiagram
 
 ```bash
 # 后端 (backend/)
+uv sync
+uv run alembic upgrade head   # 新环境首次执行
 uv run uvicorn app.main:app --reload --port 8000
 
 # 前端 (frontend/)
+npm install
 npm run dev
 ```
 

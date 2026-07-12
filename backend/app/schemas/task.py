@@ -10,6 +10,8 @@ class TaskBase(BaseModel):
     connection_id: int | None = None
     output_path: str | None = None
     schedule_config: str | None = None
+    prerequisite_task_id: int | None = None
+    tags: str | None = None
     enabled: bool = False
 
 
@@ -24,6 +26,8 @@ class TaskUpdate(BaseModel):
     connection_id: int | None = None
     output_path: str | None = None
     schedule_config: str | None = None
+    prerequisite_task_id: int | None = None
+    tags: str | None = None
     enabled: bool | None = None
 
 

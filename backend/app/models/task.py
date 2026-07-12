@@ -1,7 +1,7 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Integer, String, Text, func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..core.database import Base
 
@@ -13,9 +13,14 @@ class Task(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False, comment="任务名称")
     type: Mapped[str] = mapped_column(String(50), nullable=False, comment="sql | python")
     content: Mapped[str] = mapped_column(Text, nullable=False, comment="SQL 或 Python 代码")
-    connection_id: Mapped[int | None] = mapped_column(Integer, nullable=True, comment="关联连接 ID，SQL 任务必填")
+    connection_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("connections.id"), nullable=True, comment="关联连接 ID，SQL 任务必填")
     output_path: Mapped[str | None] = mapped_column(String(1024), nullable=True, comment="CSV 导出路径")
     schedule_config: Mapped[str | None] = mapped_column(Text, nullable=True, comment="cron 表达式 JSON")
+    prerequisite_task_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("tasks.id"), nullable=True, comment="前置任务 ID，运行前需成功执行")
+    tags: Mapped[str | None] = mapped_column(String(1024), nullable=True, comment="逗号分隔的标签")
     enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    connection = relationship("Connection", back_populates="tasks")
+    runs = relationship("TaskRun", back_populates="task")

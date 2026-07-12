@@ -4,73 +4,36 @@ from datetime import datetime, timezone
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
-from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from ..core.config import settings
-from ..models.connection import Connection
+from ..core.database import engine, SessionLocal
 from ..models.task import Task
 from ..models.task_run import TaskRun
-from .executor.sql_executor import execute_sql as _exec_sql
-from .executor.python_executor import execute_python
-from .data_preview import preview_data
-from .csv_exporter import export_to_csv
+from .task_runner import check_prerequisite, run_task
 
 from loguru import logger
 
-_engine = create_engine(settings.database_url, connect_args={"check_same_thread": False})
 _scheduler: BackgroundScheduler | None = None
 
 
-def _get_db() -> Session:
-    return Session(_engine)
-
-
 def _run_task_job(task_id: int):
-    """APScheduler 调用的任务执行函数"""
-    db = _get_db()
+    db = SessionLocal()
     try:
         task = db.get(Task, task_id)
         if not task or not task.enabled:
             return
 
-        run_record = TaskRun(task_id=task.id, status="running")
-        db.add(run_record)
-        db.commit()
-        db.refresh(run_record)
+        err = check_prerequisite(task, db)
+        if err:
+            run_record = TaskRun(task_id=task.id, status="failed", error_message=err)
+            run_record.finished_at = datetime.now(timezone.utc)
+            db.add(run_record)
+            db.commit()
+            logger.warning(f"task {task.id} skipped: {err}")
+            return
 
-        try:
-            if task.type == "sql":
-                if not task.connection_id:
-                    raise ValueError("SQL 任务未关联数据库连接")
-                conn = db.get(Connection, task.connection_id)
-                if not conn:
-                    raise ValueError(f"连接不存在 (id={task.connection_id})")
-
-                df = _exec_sql(conn, task.content, timeout=300)
-                result = preview_data(df)
-
-                run_record.status = "success"
-                run_record.result_preview = json.dumps(result, ensure_ascii=False, default=str)
-                run_record.row_count = result["total_rows"]
-
-                if task.output_path:
-                    export_to_csv(df, task.output_path)
-
-            else:
-                result = execute_python(task.content, timeout=60)
-                run_record.status = "success" if result["success"] else "failed"
-                if not result["success"]:
-                    run_record.error_message = result["stderr"]
-                run_record.result_preview = json.dumps(result, ensure_ascii=False, default=str)
-
-        except Exception as e:
-            run_record.status = "failed"
-            run_record.error_message = str(e)
-
-        run_record.finished_at = datetime.now(timezone.utc)
-        db.commit()
-
+        result = run_task(task, db)
+        logger.info(f"task {task.id} completed with status {result['status']}")
     except Exception as e:
         logger.exception(f"scheduler task {task_id} error: {e}")
     finally:
@@ -78,7 +41,6 @@ def _run_task_job(task_id: int):
 
 
 def _register_task(task: Task):
-    """注册单个任务到调度器"""
     if not task.enabled or not task.schedule_config:
         return
     try:
@@ -105,12 +67,12 @@ def init_scheduler():
     if _scheduler is not None:
         return
 
-    jobstore = SQLAlchemyJobStore(engine=_engine)
+    jobstore = SQLAlchemyJobStore(engine=engine)
     _scheduler = BackgroundScheduler(jobstores={"default": jobstore})
     _scheduler.start()
     logger.info("scheduler started")
 
-    db = _get_db()
+    db = SessionLocal()
     try:
         tasks = db.query(Task).filter(Task.enabled == True).all()
         for task in tasks:
