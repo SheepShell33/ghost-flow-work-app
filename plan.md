@@ -392,7 +392,7 @@ sequenceDiagram
 - 后端遵循 FastAPI 官方规范，使用 Pydantic v2 做数据校验
 - 数据库迁移使用 Alembic
 - 前后端通过 RESTful JSON API 通信
-- Python 包管理使用 `uv add`，前端使用 npm
+- Python 包管理使用 `uv add`，前端使用 pnpm
 - 后端通过 `uv run` 启动
 
 ---
@@ -432,8 +432,8 @@ uv run alembic upgrade head   # 新环境首次执行
 uv run uvicorn app.main:app --reload --port 8000
 
 # 前端 (frontend/)
-npm install
-npm run dev
+pnpm install
+pnpm dev
 ```
 
 前端访问 http://localhost:5173 ，API 通过 Vite proxy 自动转发到后端 8000 端口。

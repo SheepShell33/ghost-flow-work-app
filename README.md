@@ -1,3 +1,4 @@
+
 # Ghost Flow Work App
 
 一个基于 Web 的任务计划调度工具，支持定时运行 Python 脚本和 SQL 查询，可连接 SQLite 和 AWS Redshift（含 IAM 与 Okta SSO 认证）。
@@ -10,7 +11,7 @@
 |---|---|
 | 前端 | React 19 + TypeScript + Ant Design 6 |
 | 后端 | FastAPI + Python 3.12 |
-| 包管理 | uv (Python) / npm (前端) |
+| 包管理 | uv (Python) / pnpm (前端) |
 | ORM | SQLAlchemy 2.0 |
 | 调度引擎 | APScheduler + SQLAlchemyJobStore |
 | SQL 执行 | redshift-connector / SQLAlchemy |
@@ -42,8 +43,8 @@ uv run uvicorn app.main:app --reload --port 8000
 
 # 前端（新开终端）
 cd frontend
-npm install
-npm run dev
+pnpm install
+pnpm dev
 ```
 
 前端访问 http://localhost:5173，API 通过 Vite proxy 自动转发到后端 8000 端口。
@@ -52,7 +53,7 @@ npm run dev
 
 ```bash
 cd frontend
-npm run build    # 输出到 frontend/dist/
+pnpm build    # 输出到 frontend/dist/
 ```
 
 ---

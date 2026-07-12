@@ -2,7 +2,7 @@
 
 ## Project structure
 
-- `backend/` — Python FastAPI (`uv` managed), `frontend/` — React + Vite (`npm` managed)
+- `backend/` — Python FastAPI (`uv` managed), `frontend/` — React + Vite (`pnpm` managed)
 - Each is independent; no monorepo tool. Start both for development.
 
 ## Commands
@@ -12,8 +12,8 @@
 cd backend && uv run uvicorn app.main:app --reload --port 8000
 
 # frontend
-cd frontend && npm run dev          # dev server on :5173
-npm run build                        # tsc -b && vite build
+cd frontend && pnpm dev          # dev server on :5173
+pnpm build                        # tsc -b && vite build
 ```
 
 ## Python (uv)
