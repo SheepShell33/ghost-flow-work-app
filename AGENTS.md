@@ -54,7 +54,8 @@ pnpm build                        # tsc -b && vite build
 ## Conventions
 
 - All code comments, docs, and communication in **Chinese**.
-- No Alembic migrations yet — schema is auto-created by SQLAlchemy `Base.metadata.create_all()`.
+- Database schema is managed by Alembic; new environments run `uv run alembic upgrade head`.
 - Redshift Okta SSO uses `redshift-connector` with `OktaCredentialsProvider` (config: `idp_tenant`, `client_id`, `plugin_name`).
 - Python executor runs in `subprocess` sandbox; SQL executor uses `ThreadPoolExecutor` for timeout.
 - Frontend uses Ant Design 6, all pages are under `src/pages/`, layout in `src/components/AppLayout.tsx`.
+- After any significant feature update, bugfix, or other change, run `git commit` locally (do not push automatically).
