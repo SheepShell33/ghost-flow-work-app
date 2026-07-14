@@ -1,12 +1,12 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import {
-  Card, Table, Button, Space, Modal, Tag, message, Popconfirm, Typography, Switch, Tooltip, Alert, Input, Row, Col, Select,
+  Card, Table, Button, Space, Modal, Tag, message, Popconfirm, Typography, Switch, Tooltip, Alert, Input, Select,
 } from 'antd'
 import {
-  PlusOutlined, PlayCircleOutlined, EyeOutlined, DownloadOutlined, SearchOutlined,
+  PlusOutlined, PlayCircleOutlined, EyeOutlined, DownloadOutlined, SearchOutlined, EditOutlined, DeleteOutlined,
 } from '@ant-design/icons'
 import { listTasks, deleteTask, runTask, previewTask, exportTaskCsv, toggleTask, downloadTaskCsv } from '../../api/tasks'
-import type { TaskItem, RunResult, PreviewData } from '../../api/tasks'
+import type { TaskItem, RunResult, PreviewData, PythonResult } from '../../api/tasks'
 import TaskForm from './TaskForm'
 import DataPreview from './DataPreview'
 
@@ -17,6 +17,8 @@ export default function Tasks() {
   const [loading, setLoading] = useState(true)
   const [searchQ, setSearchQ] = useState('')
   const [searchTag, setSearchTag] = useState<string[]>([])
+  const [filterType, setFilterType] = useState<'all' | 'sql' | 'python'>('all')
+  const [filterEnabled, setFilterEnabled] = useState<'all' | 'enabled' | 'disabled' | 'unscheduled'>('all')
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<TaskItem | null>(null)
   const [previewOpen, setPreviewOpen] = useState(false)
@@ -38,6 +40,16 @@ export default function Tasks() {
   }, [searchQ, searchTag])
 
   useEffect(() => { load() }, [load])
+
+  const displayedData = useMemo(() => {
+    return data.filter((t) => {
+      if (filterType !== 'all' && t.type !== filterType) return false
+      if (filterEnabled === 'enabled') return t.enabled
+      if (filterEnabled === 'disabled') return t.schedule_config && !t.enabled
+      if (filterEnabled === 'unscheduled') return !t.schedule_config
+      return true
+    })
+  }, [data, filterType, filterEnabled])
 
   const handleDelete = async (id: number) => {
     try {
@@ -107,31 +119,59 @@ export default function Tasks() {
   }
 
   const columns = [
-    { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
-    { title: '名称', dataIndex: 'name', key: 'name', ellipsis: true },
     {
-      title: '标签', key: 'tags', width: 160, ellipsis: true,
-      render: (_: unknown, r: TaskItem) => r.tags
-        ? r.tags.split(',').map((t) => t.trim()).filter(Boolean).map((t) => (
-          <Tag key={t} style={{ marginBottom: 2 }}>{t}</Tag>
-        ))
-        : <Text type="secondary">-</Text>,
+      title: '名称',
+      dataIndex: 'name',
+      key: 'name',
+      ellipsis: true,
+      render: (name: string, record: TaskItem) => (
+        <Space>
+          <Text strong>{name}</Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>#{record.id}</Text>
+        </Space>
+      ),
     },
     {
-      title: '类型', dataIndex: 'type', key: 'type', width: 80,
+      title: '类型',
+      dataIndex: 'type',
+      key: 'type',
+      width: 80,
       render: (t: string) => (
         <Tag color={t === 'sql' ? 'geekblue' : 'purple'}>{t === 'sql' ? 'SQL' : 'Python'}</Tag>
       ),
     },
     {
-      title: '前置任务', key: 'prerequisite', width: 140, ellipsis: true,
+      title: '标签',
+      key: 'tags',
+      width: 180,
+      render: (_: unknown, r: TaskItem) => {
+        if (!r.tags) return <Text type="secondary">-</Text>
+        const tags = r.tags.split(',').map((t) => t.trim()).filter(Boolean)
+        return (
+          <Space size={4} wrap style={{ maxWidth: 160, lineHeight: '22px' }}>
+            {tags.slice(0, 3).map((t) => <Tag key={t}>{t}</Tag>)}
+            {tags.length > 3 && (
+              <Tooltip title={tags.slice(3).join(', ')}>
+                <Tag>+{tags.length - 3}</Tag>
+              </Tooltip>
+            )}
+          </Space>
+        )
+      },
+    },
+    {
+      title: '前置任务',
+      key: 'prerequisite',
+      width: 140,
       render: (_: unknown, r: TaskItem) => {
         if (!r.prerequisite_task_id) return <Text type="secondary">无</Text>
         return <Tag>{getPrereqName(r.prerequisite_task_id)}</Tag>
       },
     },
     {
-      title: '调度', key: 'enabled', width: 120,
+      title: '调度',
+      key: 'enabled',
+      width: 110,
       render: (_: unknown, record: TaskItem) => (
         record.schedule_config ? (
           <Space>
@@ -146,31 +186,27 @@ export default function Tasks() {
       ),
     },
     {
-      title: '操作', key: 'action', width: 400,
+      title: '操作',
+      key: 'action',
+      width: 220,
       render: (_: unknown, record: TaskItem) => (
-        <Space size="small" wrap>
-          <Tooltip title="运行任务并记录">
-            <Button size="small" icon={<PlayCircleOutlined />} onClick={() => handleRun(record)}>运行</Button>
-          </Tooltip>
+        <Space size="small" wrap className="ghost-table-actions">
+          <Tooltip title="运行"><Button size="small" icon={<PlayCircleOutlined />} onClick={() => handleRun(record)} /></Tooltip>
           {record.type === 'sql' && (
-            <Tooltip title="预览前100行数据">
-              <Button size="small" icon={<EyeOutlined />} onClick={() => handlePreview(record)}>预览</Button>
-            </Tooltip>
+            <Tooltip title="预览"><Button size="small" icon={<EyeOutlined />} onClick={() => handlePreview(record)} /></Tooltip>
           )}
           {record.type === 'sql' && record.output_path && (
-            <Tooltip title="导出CSV到指定路径">
-              <Button size="small" icon={<DownloadOutlined />} onClick={() => handleExport(record)}>导出</Button>
-            </Tooltip>
+            <Tooltip title="导出"><Button size="small" icon={<DownloadOutlined />} onClick={() => handleExport(record)} /></Tooltip>
           )}
           {record.type === 'sql' && (
-            <Tooltip title="下载 CSV 到本地">
-              <Button size="small" icon={<DownloadOutlined />} onClick={() => downloadTaskCsv(record.id)}>下载</Button>
-            </Tooltip>
+            <Tooltip title="下载"><Button size="small" icon={<DownloadOutlined />} onClick={() => downloadTaskCsv(record.id)} /></Tooltip>
           )}
-          <Button size="small" onClick={() => { setEditing(record); setFormOpen(true) }}>编辑</Button>
-          <Popconfirm title="确定删除？" onConfirm={() => handleDelete(record.id)}>
-            <Button size="small" danger>删除</Button>
-          </Popconfirm>
+          <Tooltip title="编辑"><Button size="small" icon={<EditOutlined />} onClick={() => { setEditing(record); setFormOpen(true) }} /></Tooltip>
+          <Tooltip title="删除">
+            <Popconfirm title="确定删除？" onConfirm={() => handleDelete(record.id)}>
+              <Button size="small" danger icon={<DeleteOutlined />} />
+            </Popconfirm>
+          </Tooltip>
         </Space>
       ),
     },
@@ -186,21 +222,26 @@ export default function Tasks() {
         </Button>
       }
     >
-      <Row gutter={16} style={{ marginBottom: 16 }}>
-        <Col span={8}>
-          <Input prefix={<SearchOutlined />} placeholder="搜索任务名称/代码..." allowClear
-            value={searchQ} onChange={(e) => setSearchQ(e.target.value)} />
-        </Col>
-        <Col span={6}>
-          <Select mode="multiple" placeholder="按标签筛选" allowClear
-            value={searchTag}
-            onChange={(v: string[]) => setSearchTag(v)}
-            style={{ width: '100%' }}>
-            {allTags.map((t) => <Select.Option key={t} value={t}>{t}</Select.Option>)}
-          </Select>
-        </Col>
-      </Row>
-      <Table rowKey="id" columns={columns} dataSource={data} loading={loading}
+      <div className="ghost-filter-bar">
+        <Input prefix={<SearchOutlined />} placeholder="搜索任务名称/代码..." allowClear
+          value={searchQ} onChange={(e) => setSearchQ(e.target.value)} style={{ width: 260 }} />
+        <Select mode="multiple" placeholder="按标签筛选" allowClear
+          value={searchTag} onChange={(v: string[]) => setSearchTag(v)} style={{ minWidth: 160 }}>
+          {allTags.map((t) => <Select.Option key={t} value={t}>{t}</Select.Option>)}
+        </Select>
+        <Select value={filterType} onChange={(v) => setFilterType(v as typeof filterType)} style={{ width: 120 }}>
+          <Select.Option value="all">全部类型</Select.Option>
+          <Select.Option value="sql">SQL</Select.Option>
+          <Select.Option value="python">Python</Select.Option>
+        </Select>
+        <Select value={filterEnabled} onChange={(v) => setFilterEnabled(v as typeof filterEnabled)} style={{ width: 140 }}>
+          <Select.Option value="all">全部状态</Select.Option>
+          <Select.Option value="enabled">已启用</Select.Option>
+          <Select.Option value="disabled">已停用</Select.Option>
+          <Select.Option value="unscheduled">未配置</Select.Option>
+        </Select>
+      </div>
+      <Table rowKey="id" columns={columns} dataSource={displayedData} loading={loading}
         pagination={{ pageSize: 20 }} size="middle" />
 
       <Modal title={editing ? '编辑任务' : '新建任务'} open={formOpen}
@@ -218,29 +259,37 @@ export default function Tasks() {
         onCancel={() => { setResultOpen(false); setResultData(null) }}
         width={800} destroyOnClose>
         {resultData && (
-          <div>
-            <Tag color={resultData.status === 'success' ? 'green' : 'red'}>
-              {resultData.status === 'success' ? '成功' : '失败'}
+          <Space direction="vertical" style={{ width: '100%' }} size="middle">
+            <Tag style={{ fontSize: 16, padding: '6px 12px' }}
+              color={resultData.status === 'success' ? 'green' : 'red'}>
+              {resultData.status === 'success' ? '执行成功' : '执行失败'}
             </Tag>
             {resultData.error_message && (
-              <Alert type="error" message={resultData.error_message} style={{ marginTop: 12 }} />
+              <Alert type="error" message={resultData.error_message} showIcon />
             )}
             {resultData.result_preview && 'columns' in resultData.result_preview ? (
-              <div style={{ marginTop: 12 }}>
+              <Card className="ghost-card" size="small" title="数据预览">
                 <DataPreview data={resultData.result_preview as PreviewData} />
-              </div>
+              </Card>
             ) : resultData.result_preview && 'stdout' in resultData.result_preview ? (
-              <pre style={{
-                background: '#f5f5f5', padding: 12, borderRadius: 4,
-                maxHeight: 400, overflow: 'auto', marginTop: 12,
-              }}>
-                <Text>{(resultData.result_preview as any).stdout || '(无输出)'}</Text>
-                {(resultData.result_preview as any).stderr && (
-                  <Text type="danger">{(resultData.result_preview as any).stderr}</Text>
+              <Card className="ghost-card" size="small" title="Python 输出">
+                <pre style={{
+                  background: '#f6ffed', padding: 12, borderRadius: 4,
+                  maxHeight: 400, overflow: 'auto', margin: 0,
+                }}>
+                  <Text>{(resultData.result_preview as PythonResult).stdout || '(无输出)'}</Text>
+                </pre>
+                {(resultData.result_preview as PythonResult).stderr && (
+                  <pre style={{
+                    background: '#fff2f0', padding: 12, borderRadius: 4,
+                    maxHeight: 200, overflow: 'auto', marginTop: 12, color: '#ff4d4f',
+                  }}>
+                    {(resultData.result_preview as PythonResult).stderr}
+                  </pre>
                 )}
-              </pre>
+              </Card>
             ) : null}
-          </div>
+          </Space>
         )}
       </Modal>
     </Card>
