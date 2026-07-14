@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import { Card, Table, Tag, Empty, Typography, Space, Descriptions, Tooltip, message, Select, Alert } from 'antd'
 import { CopyOutlined, ReloadOutlined } from '@ant-design/icons'
 import { listTaskRuns } from '../../api/task-runs'
@@ -21,22 +21,30 @@ export default function History() {
 
   const taskMap = useMemo(() => new Map(tasks.map((t) => [t.id, t.name])), [tasks])
 
-  const load = async () => {
+  const isFiltered = filterStatus !== 'all' || filterRange !== 'all'
+
+  const load = useCallback(async () => {
     setLoading(true)
     try {
       const [runs, allTasks] = await Promise.all([
-        listTaskRuns({ task_id: filterTaskId, page, page_size: pageSize }),
+        listTaskRuns({
+          task_id: filterTaskId,
+          page: isFiltered ? 1 : page,
+          page_size: isFiltered ? 9999 : pageSize,
+        }),
         listTasks(),
       ])
       setData(runs)
       setTasks(allTasks)
-      setTotal(runs.length < pageSize ? (page - 1) * pageSize + runs.length : page * pageSize + 1)
+      if (!isFiltered) {
+        setTotal(runs.length < pageSize ? (page - 1) * pageSize + runs.length : page * pageSize + 1)
+      }
     } finally {
       setLoading(false)
     }
-  }
+  }, [filterTaskId, page, isFiltered])
 
-  useEffect(() => { load() }, [filterTaskId, page])
+  useEffect(() => { load() }, [load])
 
   const getTaskName = (taskId: number) => taskMap.get(taskId) || `#${taskId}`
 
@@ -133,7 +141,7 @@ export default function History() {
         <Empty description="暂无运行记录，执行任务后这里会显示历史" />
       ) : (
         <Table rowKey="id" columns={columns} dataSource={filteredData}
-          pagination={{ current: page, pageSize, total, onChange: setPage, showSizeChanger: false, showTotal: (t) => `共 ${t} 条` }}
+          pagination={{ current: page, pageSize, total: isFiltered ? filteredData.length : total, onChange: setPage, showSizeChanger: false, showTotal: (t) => `共 ${t} 条` }}
           size="middle" scroll={{ x: 900 }}
           expandable={{
             expandedRowRender: (record) => (
