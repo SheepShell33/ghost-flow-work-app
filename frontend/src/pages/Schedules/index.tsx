@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Card, Table, Tag, Badge, Space, Empty, Switch, message } from 'antd'
+import { Card, Table, Tag, Badge, Space, Empty, Switch, message, Alert, Typography } from 'antd'
 import { listSchedules, getSchedulerStatus } from '../../api/schedules'
 import type { ScheduleItem, SchedulerStatus } from '../../api/schedules'
 import { toggleTask } from '../../api/tasks'
+
+const { Text } = Typography
 
 export default function Schedules() {
   const [data, setData] = useState<ScheduleItem[]>([])
@@ -33,50 +35,92 @@ export default function Schedules() {
   }
 
   const columns = [
-    { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
-    { title: '任务名称', dataIndex: 'name', key: 'name' },
     {
-      title: '类型', dataIndex: 'type', key: 'type', width: 80,
-      render: (t: string) => <Tag color={t === 'sql' ? 'geekblue' : 'purple'}>{t}</Tag>,
-    },
-    {
-      title: '启停', key: 'toggle', width: 100,
-      render: (_: unknown, r: ScheduleItem) => (
-        <Switch checked={r.enabled} size="small" onChange={() => handleToggle(r.id)} />
+      title: '任务名称',
+      dataIndex: 'name',
+      key: 'name',
+      render: (name: string, record: ScheduleItem) => (
+        <Space>
+          <Text strong>{name}</Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>#{record.id}</Text>
+        </Space>
       ),
     },
     {
-      title: '状态', dataIndex: 'enabled', key: 'enabled', width: 80,
-      render: (v: boolean) => <Badge status={v ? 'success' : 'default'} text={v ? '运行中' : '已停用'} />,
+      title: '类型',
+      dataIndex: 'type',
+      key: 'type',
+      width: 80,
+      render: (t: string) => <Tag color={t === 'sql' ? 'geekblue' : 'purple'}>{t}</Tag>,
     },
     {
-      title: 'Cron 表达式', key: 'cron', width: 150,
+      title: 'Cron 表达式',
+      key: 'cron',
+      width: 150,
       render: (_: unknown, r: ScheduleItem) => {
         try {
           const cfg = JSON.parse(r.schedule_config)
-          return <Tag>{cfg.cron || '-'}</Tag>
+          return <Tag style={{ fontFamily: 'monospace' }}>{cfg.cron || '-'}</Tag>
         } catch { return '-' }
       },
     },
     {
-      title: '下次执行', key: 'next_run', width: 200,
+      title: '下次执行',
+      key: 'next_run',
+      width: 220,
       render: (_: unknown, r: ScheduleItem) => {
         if (!status?.jobs || !r.enabled) return '-'
         const job = status.jobs.find((j) => j.id === `task_${r.id}`)
-        return job?.next_run_time ? new Date(job.next_run_time).toLocaleString('zh-CN') : '-'
+        if (!job?.next_run_time) return '-'
+        const dt = new Date(job.next_run_time)
+        const abs = dt.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+        const diff = dt.getTime() - Date.now()
+        let rel = ''
+        if (diff < 0) rel = '已过期'
+        else if (diff < 60_000) rel = '即将执行'
+        else if (diff < 60 * 60_000) rel = `${Math.round(diff / 60_000)} 分钟后`
+        else if (diff < 24 * 60 * 60_000) rel = `${Math.round(diff / (60 * 60_000))} 小时后`
+        else rel = `${Math.round(diff / (24 * 60 * 60_000))} 天后`
+        return <span>{rel}（{abs}）</span>
       },
+    },
+    {
+      title: '启用',
+      key: 'toggle',
+      width: 80,
+      render: (_: unknown, r: ScheduleItem) => (
+        <Switch checked={r.enabled} size="small" onChange={() => handleToggle(r.id)} />
+      ),
     },
   ]
 
   return (
     <Space direction="vertical" style={{ width: '100%' }} size={16}>
-      <Card className="ghost-card" size="small">
-        <Space>
-          <Badge status={status?.running ? 'success' : 'error'} />
-          <span>调度引擎：{status?.running ? '运行中' : '已停止'}</span>
-          <span style={{ color: '#8c8c8c' }}>|</span>
-          <span>活跃任务：{status?.jobs.length ?? 0}</span>
+      <Card className="ghost-card" loading={loading}>
+        <Space size="large" align="center">
+          <Space>
+            <Badge status={status?.running ? 'success' : 'error'} />
+            <span style={{ fontSize: 18, fontWeight: 600 }}>
+              {status?.running ? '运行中' : '已停止'}
+            </span>
+          </Space>
+          <div>活跃定时任务：<strong>{status?.jobs.length ?? 0}</strong></div>
+          <div>
+            下次触发：
+            <strong>
+              {status?.jobs.length
+                ? new Date(Math.min(...status.jobs.map((j) => new Date(j.next_run_time!).getTime()))).toLocaleString('zh-CN')
+                : '-'}
+            </strong>
+          </div>
         </Space>
+        <Alert
+          type="info"
+          showIcon
+          message="提示"
+          description="定时调度在「任务管理」页面配置 Cron 表达式后自动生效。"
+          style={{ marginTop: 16 }}
+        />
       </Card>
 
       <Card className="ghost-card" title="排程任务列表" loading={loading}>
