@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
-import { Card, Table, Tag, Empty, Typography, Space, Descriptions, Tooltip, message, Select } from 'antd'
+import { Card, Table, Tag, Empty, Typography, Space, Descriptions, Tooltip, message, Select, Alert } from 'antd'
 import { CopyOutlined, ReloadOutlined } from '@ant-design/icons'
 import { listTaskRuns } from '../../api/task-runs'
 import type { TaskRunItem } from '../../api/task-runs'
@@ -13,6 +13,8 @@ export default function History() {
   const [tasks, setTasks] = useState<TaskItem[]>([])
   const [loading, setLoading] = useState(true)
   const [filterTaskId, setFilterTaskId] = useState<number | undefined>()
+  const [filterStatus, setFilterStatus] = useState<'all' | 'success' | 'failed' | 'running'>('all')
+  const [filterRange, setFilterRange] = useState<'24h' | '7d' | '30d' | 'all'>('all')
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const pageSize = 30
@@ -38,22 +40,40 @@ export default function History() {
 
   const getTaskName = (taskId: number) => taskMap.get(taskId) || `#${taskId}`
 
+  const filteredData = useMemo(() => {
+    return data.filter((r) => {
+      if (filterStatus !== 'all' && r.status !== filterStatus) return false
+      if (filterRange !== 'all' && r.started_at) {
+        const start = new Date(r.started_at).getTime()
+        const now = Date.now()
+        const limits = { '24h': 24 * 60 * 60_000, '7d': 7 * 24 * 60 * 60_000, '30d': 30 * 24 * 60 * 60_000 }
+        if (now - start > limits[filterRange]) return false
+      }
+      return true
+    })
+  }, [data, filterStatus, filterRange])
+
+  const formatDuration = (start?: string | null, end?: string | null) => {
+    if (!start) return '-'
+    const s = new Date(start).getTime()
+    const e = end ? new Date(end).getTime() : Date.now()
+    const diff = e - s
+    if (diff < 1000) return `${diff}ms`
+    return `${(diff / 1000).toFixed(1)}s`
+  }
+
   const columns = [
     {
-      title: 'Run ID', dataIndex: 'id', key: 'id', width: 90, fixed: 'left' as const,
+      title: 'Run ID', dataIndex: 'id', key: 'id', width: 100, fixed: 'left' as const,
       render: (id: number) => (
         <Space size={4}>
           <Text code strong style={{ fontSize: 13 }}>#{id}</Text>
           <Tooltip title="复制 Run ID">
-            <CopyOutlined
-              style={{ cursor: 'pointer', color: '#999', fontSize: 12 }}
+            <CopyOutlined style={{ cursor: 'pointer', color: '#999', fontSize: 12 }}
               onClick={async () => {
-                try {
-                  await navigator.clipboard.writeText(String(id))
-                  message.success('已复制 Run ID')
-                } catch { message.error('复制失败') }
-              }}
-            />
+                try { await navigator.clipboard.writeText(String(id)); message.success('已复制 Run ID') }
+                catch { message.error('复制失败') }
+              }} />
           </Tooltip>
         </Space>
       ),
@@ -62,7 +82,7 @@ export default function History() {
       title: '任务', key: 'task', width: 180,
       render: (_: unknown, r: TaskRunItem) => (
         <Space size={4}>
-          <Tag style={{ margin: 0 }}>{r.task_id}</Tag>
+          <Tag style={{ margin: 0 }}>#{r.task_id}</Tag>
           <Text ellipsis style={{ maxWidth: 120 }}>{getTaskName(r.task_id)}</Text>
         </Space>
       ),
@@ -75,19 +95,14 @@ export default function History() {
         return <Tag color={color}>{label}</Tag>
       },
     },
-    { title: '行数', dataIndex: 'row_count', key: 'row_count', width: 70, render: (v: number | null) => v ?? '-' },
+    { title: '行数', dataIndex: 'row_count', key: 'row_count', width: 70, align: 'right' as const, render: (v: number | null) => v ?? '-' },
     {
-      title: '开始时间', dataIndex: 'started_at', key: 'started_at', width: 170,
-      render: (v: string) => v ? new Date(v).toLocaleString('zh-CN') : '-',
+      title: '开始时间', dataIndex: 'started_at', key: 'started_at', width: 140,
+      render: (v: string) => v ? new Date(v).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '-',
     },
     {
-      title: '结束时间', dataIndex: 'finished_at', key: 'finished_at', width: 170,
-      render: (v: string | null) => v ? new Date(v).toLocaleString('zh-CN') : '-',
-    },
-    {
-      title: '错误信息', dataIndex: 'error_message', key: 'error_message',
-      ellipsis: true,
-      render: (v: string | null) => v || '-',
+      title: '耗时', key: 'duration', width: 90, align: 'right' as const,
+      render: (_: unknown, r: TaskRunItem) => formatDuration(r.started_at, r.finished_at),
     },
   ]
 
@@ -95,28 +110,35 @@ export default function History() {
     <Card className="ghost-card" loading={loading}
       title="运行历史"
       extra={
-        <Space>
-          <Select
-            placeholder="按任务筛选" allowClear style={{ width: 200 }}
-            value={filterTaskId}
-            onChange={(v) => { setFilterTaskId(v); setPage(1) }}
-            options={tasks.map((t) => ({ value: t.id, label: `#${t.id} ${t.name}` }))}
-          />
-          <Tooltip title="刷新"><ReloadOutlined onClick={load} /></Tooltip>
-        </Space>
+        <Tooltip title="刷新"><ReloadOutlined onClick={load} /></Tooltip>
       }>
-      {data.length === 0 ? (
+      <div className="ghost-filter-bar" style={{ marginTop: -8, marginBottom: 16 }}>
+        <Select placeholder="按任务筛选" allowClear style={{ width: 220 }}
+          value={filterTaskId} onChange={(v) => { setFilterTaskId(v); setPage(1) }}
+          options={tasks.map((t) => ({ value: t.id, label: `#${t.id} ${t.name}` }))} />
+        <Select value={filterStatus} onChange={(v) => { setFilterStatus(v); setPage(1) }} style={{ width: 120 }}>
+          <Select.Option value="all">全部状态</Select.Option>
+          <Select.Option value="success">成功</Select.Option>
+          <Select.Option value="failed">失败</Select.Option>
+          <Select.Option value="running">运行中</Select.Option>
+        </Select>
+        <Select value={filterRange} onChange={(v) => { setFilterRange(v); setPage(1) }} style={{ width: 140 }}>
+          <Select.Option value="24h">近 24 小时</Select.Option>
+          <Select.Option value="7d">近 7 天</Select.Option>
+          <Select.Option value="30d">近 30 天</Select.Option>
+          <Select.Option value="all">全部</Select.Option>
+        </Select>
+      </div>
+      {filteredData.length === 0 ? (
         <Empty description="暂无运行记录，执行任务后这里会显示历史" />
       ) : (
-        <Table rowKey="id" columns={columns} dataSource={data}
-          pagination={{ current: page, pageSize, total, onChange: setPage, showSizeChanger: false }}
+        <Table rowKey="id" columns={columns} dataSource={filteredData}
+          pagination={{ current: page, pageSize, total, onChange: setPage, showSizeChanger: false, showTotal: (t) => `共 ${t} 条` }}
           size="middle" scroll={{ x: 900 }}
           expandable={{
             expandedRowRender: (record) => (
               <div style={{ padding: '12px 24px' }}>
-                <Title level={5} style={{ marginBottom: 12 }}>
-                  运行详情 — Run #{record.id}
-                </Title>
+                <Title level={5} style={{ marginBottom: 12 }}>运行详情 — Run #{record.id}</Title>
                 <Descriptions column={2} size="small" bordered>
                   <Descriptions.Item label="Run ID"><Text code>#{record.id}</Text></Descriptions.Item>
                   <Descriptions.Item label="关联任务">
@@ -134,10 +156,14 @@ export default function History() {
                   <Descriptions.Item label="结束时间">
                     {record.finished_at ? new Date(record.finished_at).toLocaleString('zh-CN') : '-'}
                   </Descriptions.Item>
-                  <Descriptions.Item label="错误信息" span={2}>
-                    {record.error_message || '无'}
+                  <Descriptions.Item label="耗时">
+                    {formatDuration(record.started_at, record.finished_at)}
                   </Descriptions.Item>
                 </Descriptions>
+                {record.error_message && (
+                  <Alert type="error" message="错误信息" description={record.error_message}
+                    style={{ marginTop: 16 }} showIcon />
+                )}
               </div>
             ),
             rowExpandable: () => true,
