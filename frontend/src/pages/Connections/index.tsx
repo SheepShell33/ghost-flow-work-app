@@ -1,15 +1,18 @@
-import { useEffect, useState } from 'react'
-import { Button, Card, Space, Table, Modal, Tag, message, Popconfirm } from 'antd'
-import { PlusOutlined } from '@ant-design/icons'
+import { useEffect, useMemo, useState } from 'react'
+import { Button, Card, Space, Table, Modal, Tag, message, Popconfirm, Tooltip, Input, Typography } from 'antd'
+import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import { listConnections, deleteConnection } from '../../api/connections'
 import type { ConnectionItem } from '../../api/connections'
 import ConnectionForm from './ConnectionForm'
+
+const { Text } = Typography
 
 export default function Connections() {
   const [data, setData] = useState<ConnectionItem[]>([])
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<ConnectionItem | null>(null)
+  const [searchQ, setSearchQ] = useState('')
 
   const load = async () => {
     setLoading(true)
@@ -23,6 +26,11 @@ export default function Connections() {
 
   useEffect(() => { load() }, [])
 
+  const filteredData = useMemo(() => {
+    if (!searchQ.trim()) return data
+    return data.filter((c) => c.name.toLowerCase().includes(searchQ.toLowerCase()))
+  }, [data, searchQ])
+
   const handleDelete = async (id: number) => {
     try {
       await deleteConnection(id)
@@ -34,44 +42,57 @@ export default function Connections() {
   }
 
   const columns = [
-    { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
-    { title: '名称', dataIndex: 'name', key: 'name' },
+    {
+      title: '名称',
+      dataIndex: 'name',
+      key: 'name',
+      render: (name: string, record: ConnectionItem) => (
+        <Space>
+          <Text strong>{name}</Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>#{record.id}</Text>
+        </Space>
+      ),
+    },
     {
       title: '类型',
       dataIndex: 'type',
       key: 'type',
+      width: 100,
       render: (t: string) => <Tag color={t === 'redshift' ? 'blue' : 'green'}>{t}</Tag>,
     },
     {
-      title: '配置',
-      dataIndex: 'config',
-      key: 'config',
+      title: '配置摘要',
+      key: 'summary',
       ellipsis: true,
-      render: (c: string) => {
+      render: (_: unknown, record: ConnectionItem) => {
         try {
-          return JSON.stringify(JSON.parse(c))
+          const cfg = JSON.parse(record.config)
+          if (record.type === 'sqlite') return cfg.file_path || '-'
+          if (record.type === 'redshift') return cfg.host || cfg.database || '-'
+          return '-'
         } catch {
-          return c
+          return '-'
         }
       },
     },
     {
       title: '操作',
       key: 'action',
+      width: 140,
       render: (_: unknown, record: ConnectionItem) => (
-        <Space>
-          <Button
-            type="link"
-            onClick={() => {
-              setEditing(record)
-              setModalOpen(true)
-            }}
-          >
-            编辑
-          </Button>
-          <Popconfirm title="确定删除？" onConfirm={() => handleDelete(record.id)}>
-            <Button type="link" danger>删除</Button>
-          </Popconfirm>
+        <Space size="small">
+          <Tooltip title="编辑">
+            <Button
+              type="text"
+              icon={<EditOutlined />}
+              onClick={() => { setEditing(record); setModalOpen(true) }}
+            />
+          </Tooltip>
+          <Tooltip title="删除">
+            <Popconfirm title="确定删除？" onConfirm={() => handleDelete(record.id)}>
+              <Button type="text" danger icon={<DeleteOutlined />} />
+            </Popconfirm>
+          </Tooltip>
         </Space>
       ),
     },
@@ -93,10 +114,19 @@ export default function Connections() {
         </Button>
       }
     >
+      <div className="ghost-filter-bar" style={{ marginTop: -8, marginBottom: 16 }}>
+        <Input.Search
+          placeholder="搜索连接名称..."
+          allowClear
+          value={searchQ}
+          onChange={(e) => setSearchQ(e.target.value)}
+          style={{ width: 320 }}
+        />
+      </div>
       <Table
         rowKey="id"
         columns={columns}
-        dataSource={data}
+        dataSource={filteredData}
         loading={loading}
         pagination={false}
       />
