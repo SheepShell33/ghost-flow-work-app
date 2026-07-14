@@ -11,7 +11,7 @@ import Schedules from '../pages/Schedules'
 import History from '../pages/History'
 import ErrorBoundary from './ErrorBoundary'
 
-const { Sider, Content } = Layout
+const { Header, Sider, Content } = Layout
 
 const menuItems = [
   { key: '/', icon: <DashboardOutlined />, label: '仪表盘' },
@@ -25,9 +25,11 @@ export default function AppLayout() {
   const navigate = useNavigate()
   const location = useLocation()
 
+  const currentLabel = menuItems.find((i) => i.key === location.pathname)?.label || 'Ghost Flow Work App'
+
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Sider theme="dark" width={220} breakpoint="lg" collapsedWidth={64}>
+      <Sider theme="dark" width={220} breakpoint="lg" collapsedWidth={64} className="ghost-sider">
         <div className="ghost-logo">Ghost Flow</div>
         <Menu
           theme="dark"
@@ -39,12 +41,10 @@ export default function AppLayout() {
         />
       </Sider>
       <Layout>
-        <div className="ghost-header">
-          <span className="ghost-header-title">
-            {menuItems.find((i) => i.key === location.pathname)?.label || 'Ghost Flow Work App'}
-          </span>
-          <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>任务调度系统 v0.1</span>
-        </div>
+        <Header className="ghost-header">
+          <span className="ghost-header-title">{currentLabel}</span>
+          <span className="ghost-header-extra">任务调度系统 v0.1</span>
+        </Header>
         <Content className="ghost-content">
           <ErrorBoundary>
             <Routes>
