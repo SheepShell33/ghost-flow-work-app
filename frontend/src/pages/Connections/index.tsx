@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Button, Card, Space, Table, Modal, Tag, message, Popconfirm, Tooltip, Input, Typography } from 'antd'
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
+import { PlusOutlined, EditOutlined, DeleteOutlined, DatabaseOutlined, CloudOutlined } from '@ant-design/icons'
 import { listConnections, deleteConnection } from '../../api/connections'
 import type { ConnectionItem } from '../../api/connections'
 import ConnectionForm from './ConnectionForm'
@@ -57,8 +57,12 @@ export default function Connections() {
       title: '类型',
       dataIndex: 'type',
       key: 'type',
-      width: 100,
-      render: (t: string) => <Tag color={t === 'redshift' ? 'blue' : 'green'}>{t}</Tag>,
+      width: 120,
+      render: (t: string) => (
+        <Tag color={t === 'redshift' ? 'blue' : 'green'} icon={t === 'redshift' ? <CloudOutlined /> : <DatabaseOutlined />}>
+          {t}
+        </Tag>
+      ),
     },
     {
       title: '配置摘要',
@@ -67,11 +71,10 @@ export default function Connections() {
       render: (_: unknown, record: ConnectionItem) => {
         try {
           const cfg = JSON.parse(record.config)
-          if (record.type === 'sqlite') return cfg.file_path || '-'
-          if (record.type === 'redshift') return cfg.host || cfg.database || '-'
-          return '-'
+          const text = record.type === 'sqlite' ? (cfg.file_path || '-') : (cfg.host || cfg.database || '-')
+          return <Text style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace', color: '#94a3b8' }}>{text}</Text>
         } catch {
-          return '-'
+          return <Text type="secondary">-</Text>
         }
       },
     },
@@ -99,7 +102,7 @@ export default function Connections() {
   ]
 
   return (
-    <Card className="ghost-card"
+    <Card className="ghost-card ghost-card-enter"
       title="连接管理"
       extra={
         <Button
