@@ -96,18 +96,22 @@ export default function Schedules() {
 
   return (
     <Space direction="vertical" style={{ width: '100%' }} size={16}>
-      <Card className="ghost-card" loading={loading}>
+      <Card className="ghost-card ghost-card-enter" loading={loading}
+        style={{ background: 'linear-gradient(135deg, rgba(0, 212, 255, 0.03), rgba(124, 58, 237, 0.03))' }}>
         <Space size="large" align="center">
           <Space>
-            <Badge status={status?.running ? 'success' : 'error'} />
-            <span style={{ fontSize: 18, fontWeight: 600 }}>
+            <Badge status={status?.running ? 'success' : 'error'} className={status?.running ? 'ghost-status-pulse' : ''} />
+            <span style={{ fontSize: 18, fontWeight: 600, color: status?.running ? '#4ade80' : '#ff6b6b' }}>
               {status?.running ? '运行中' : '已停止'}
             </span>
           </Space>
-          <div>活跃定时任务：<strong>{status?.jobs.length ?? 0}</strong></div>
-          <div>
+          <div style={{ color: '#94a3b8' }}>活跃定时任务：<strong style={{ color: '#e2e8f0' }}>{status?.jobs.length ?? 0}</strong></div>
+          <div style={{ color: '#94a3b8' }}>
             下次触发：
-            <strong>
+            <strong style={{
+              color: '#00d4ff',
+              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+            }}>
               {status?.jobs.length
                 ? new Date(Math.min(...status.jobs.map((j) => new Date(j.next_run_time!).getTime()))).toLocaleString('zh-CN')
                 : '-'}
@@ -123,7 +127,8 @@ export default function Schedules() {
         />
       </Card>
 
-      <Card className="ghost-card" title="排程任务列表" loading={loading}>
+      <Card className="ghost-card ghost-card-enter" style={{ animationDelay: '60ms' }}
+        title="排程任务列表" loading={loading}>
         {data.length === 0 ? (
           <Empty description="暂无排程任务，在任务编辑中配置 Cron 表达式即可创建定时调度" />
         ) : (
