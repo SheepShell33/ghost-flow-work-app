@@ -46,10 +46,10 @@ export default function Dashboard() {
   }, [])
 
   const statCards = [
-    { title: '数据库连接', value: connCount, icon: <LinkOutlined />, color: '#00d4ff', gradient: 'linear-gradient(90deg, #00d4ff, #38bdf8)' },
-    { title: '任务总数', value: taskCount, icon: <FileTextOutlined />, color: '#7c3aed', gradient: 'linear-gradient(90deg, #7c3aed, #a855f7)' },
-    { title: '成功执行', value: successCount, icon: <CheckCircleOutlined />, color: '#4ade80', gradient: 'linear-gradient(90deg, #4ade80, #22c55e)' },
-    { title: '失败执行', value: failCount, icon: <CloseCircleOutlined />, color: '#ff6b6b', gradient: 'linear-gradient(90deg, #ff6b6b, #ef4444)' },
+    { title: '数据库连接', value: connCount, icon: <LinkOutlined />, color: '#00d4ff' },
+    { title: '任务总数', value: taskCount, icon: <FileTextOutlined />, color: '#7c3aed' },
+    { title: '成功执行', value: successCount, icon: <CheckCircleOutlined />, color: '#4ade80' },
+    { title: '失败执行', value: failCount, icon: <CloseCircleOutlined />, color: '#ff6b6b' },
   ]
 
   return (
@@ -79,7 +79,7 @@ export default function Dashboard() {
           </Col>
         ))}
       </Row>
-      <Row gutter={[20, 20]} style={{ marginTop: 20 }}>
+      <Row gutter={[20, 20]}>
         <Col xs={24} lg={12}>
           <Card className="ghost-card ghost-card-enter" style={{ animationDelay: '240ms' }}
             title={<span><ClockCircleOutlined /> 调度引擎状态</span>} loading={loading}>

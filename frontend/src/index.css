@@ -7,14 +7,12 @@
   --ghost-secondary: #7c3aed;
   --ghost-success: #4ade80;
   --ghost-error: #ff6b6b;
-  --ghost-warning: #fbbf24;
   --ghost-text: #e2e8f0;
   --ghost-text-secondary: #94a3b8;
   --ghost-text-disabled: #475569;
   --ghost-border: rgba(148, 163, 184, 0.1);
   --ghost-border-hover: rgba(0, 212, 255, 0.3);
   --ghost-radius: 14px;
-  --ghost-radius-sm: 6px;
   --ghost-radius-lg: 12px;
 }
 
@@ -44,6 +42,7 @@ body {
 }
 
 .ghost-sider .ant-menu-item {
+  border-left: 3px solid transparent;
   transition: transform 0.2s ease, background 0.2s ease;
 }
 
@@ -98,23 +97,6 @@ body {
   background: var(--ghost-bg);
   background-image: radial-gradient(circle at 1px 1px, rgba(148, 163, 184, 0.05) 1px, transparent 0);
   background-size: 32px 32px;
-}
-
-/* 页面标题区 */
-.ghost-page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 24px;
-  padding-left: 12px;
-  border-left: 4px solid transparent;
-  border-image: linear-gradient(180deg, var(--ghost-primary), var(--ghost-secondary)) 1;
-}
-
-.ghost-page-header-title {
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--ghost-text);
 }
 
 /* ===== 卡片 ===== */
@@ -397,13 +379,13 @@ body {
 }
 
 /* 按钮 */
-.ant-btn-primary {
+.ant-btn-primary:not(:disabled) {
   background: linear-gradient(135deg, var(--ghost-primary) 0%, var(--ghost-secondary) 100%) !important;
   border: none !important;
   box-shadow: 0 2px 8px rgba(0, 212, 255, 0.2);
 }
 
-.ant-btn-primary:hover {
+.ant-btn-primary:not(:disabled):hover {
   opacity: 0.9;
   box-shadow: 0 4px 12px rgba(0, 212, 255, 0.3) !important;
 }
@@ -464,13 +446,6 @@ body {
 
 .ant-select-item-option-active {
   background: rgba(0, 212, 255, 0.08) !important;
-}
-
-/* Tag */
-.ant-tag {
-  background: rgba(148, 163, 184, 0.1) !important;
-  border-color: rgba(148, 163, 184, 0.2) !important;
-  color: var(--ghost-text-secondary) !important;
 }
 
 /* 描述列表 */
