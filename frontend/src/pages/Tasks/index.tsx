@@ -175,6 +175,12 @@ export default function Tasks() {
       render: (_: unknown, record: TaskItem) => (
         record.schedule_config ? (
           <Space>
+            {record.enabled && (
+              <span style={{
+                display: 'inline-block', width: 8, height: 8, borderRadius: '50%',
+                background: '#4ade80', boxShadow: '0 0 8px #4ade80',
+              }} className="ghost-status-pulse" />
+            )}
             <Switch checked={record.enabled} size="small" onChange={() => handleToggle(record)} />
             <Tag color={record.enabled ? 'green' : 'default'} style={{ margin: 0 }}>
               {record.enabled ? '启用' : '停用'}
@@ -213,7 +219,7 @@ export default function Tasks() {
   ]
 
   return (
-    <Card className="ghost-card"
+    <Card className="ghost-card ghost-card-enter"
       title="任务管理"
       extra={
         <Button type="primary" icon={<PlusOutlined />}
@@ -260,8 +266,14 @@ export default function Tasks() {
         width={800} destroyOnClose>
         {resultData && (
           <Space direction="vertical" style={{ width: '100%' }} size="middle">
-            <Tag style={{ fontSize: 16, padding: '6px 12px' }}
-              color={resultData.status === 'success' ? 'green' : 'red'}>
+            <Tag style={{
+              fontSize: 16, padding: '6px 12px',
+              background: resultData.status === 'success'
+                ? 'linear-gradient(135deg, rgba(74, 222, 128, 0.2), rgba(34, 197, 94, 0.2))'
+                : 'linear-gradient(135deg, rgba(255, 107, 107, 0.2), rgba(239, 68, 68, 0.2))',
+              borderColor: resultData.status === 'success' ? 'rgba(74, 222, 128, 0.4)' : 'rgba(255, 107, 107, 0.4)',
+              color: resultData.status === 'success' ? '#4ade80' : '#ff6b6b',
+            }}>
               {resultData.status === 'success' ? '执行成功' : '执行失败'}
             </Tag>
             {resultData.error_message && (
