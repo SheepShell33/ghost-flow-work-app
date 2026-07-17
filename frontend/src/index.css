@@ -42,8 +42,11 @@ body {
 }
 
 .ghost-sider .ant-menu-item {
-  border-left: 3px solid transparent;
   transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.ghost-sider .ant-menu-item:not(.ant-menu-item-selected) {
+  border-left: 3px solid transparent;
 }
 
 .ghost-sider .ant-menu-item:hover {
