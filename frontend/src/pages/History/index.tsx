@@ -110,12 +110,23 @@ export default function History() {
     },
     {
       title: '耗时', key: 'duration', width: 90, align: 'right' as const,
-      render: (_: unknown, r: TaskRunItem) => formatDuration(r.started_at, r.finished_at),
+      render: (_: unknown, r: TaskRunItem) => {
+        const text = formatDuration(r.started_at, r.finished_at)
+        // 按耗时阈值变色：<1s 绿色，<10s 黄色，其余红色
+        let color = '#94a3b8'
+        if (r.started_at) {
+          const diff = (r.finished_at ? new Date(r.finished_at).getTime() : Date.now()) - new Date(r.started_at).getTime()
+          if (diff < 1000) color = '#4ade80'
+          else if (diff < 10000) color = '#fbbf24'
+          else color = '#ff6b6b'
+        }
+        return <span style={{ color, fontVariantNumeric: 'tabular-nums' }}>{text}</span>
+      },
     },
   ]
 
   return (
-    <Card className="ghost-card" loading={loading}
+    <Card className="ghost-card ghost-card-enter" loading={loading}
       title="运行历史"
       extra={
         <Tooltip title="刷新"><ReloadOutlined onClick={load} /></Tooltip>
@@ -145,7 +156,7 @@ export default function History() {
           size="middle" scroll={{ x: 900 }}
           expandable={{
             expandedRowRender: (record) => (
-              <div style={{ padding: '12px 24px' }}>
+              <div style={{ padding: '12px 24px' }} className="ghost-fade-in">
                 <Title level={5} style={{ marginBottom: 12 }}>运行详情 — Run #{record.id}</Title>
                 <Descriptions column={2} size="small" bordered>
                   <Descriptions.Item label="Run ID"><Text code>#{record.id}</Text></Descriptions.Item>
