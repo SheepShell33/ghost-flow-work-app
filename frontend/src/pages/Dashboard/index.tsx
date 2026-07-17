@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import type { CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Card, Col, Row, Badge, Button, Empty, Space, Tag, Typography, message as msg,
@@ -45,67 +46,88 @@ export default function Dashboard() {
   }, [])
 
   const statCards = [
-    { title: '数据库连接', value: connCount, icon: <LinkOutlined />, color: '#667eea' },
-    { title: '任务总数', value: taskCount, icon: <FileTextOutlined />, color: '#764ba2' },
-    { title: '成功执行', value: successCount, icon: <CheckCircleOutlined />, color: '#52c41a' },
-    { title: '失败执行', value: failCount, icon: <CloseCircleOutlined />, color: '#ff4d4f' },
+    { title: '数据库连接', value: connCount, icon: <LinkOutlined />, color: '#00d4ff', gradient: 'linear-gradient(90deg, #00d4ff, #38bdf8)' },
+    { title: '任务总数', value: taskCount, icon: <FileTextOutlined />, color: '#7c3aed', gradient: 'linear-gradient(90deg, #7c3aed, #a855f7)' },
+    { title: '成功执行', value: successCount, icon: <CheckCircleOutlined />, color: '#4ade80', gradient: 'linear-gradient(90deg, #4ade80, #22c55e)' },
+    { title: '失败执行', value: failCount, icon: <CloseCircleOutlined />, color: '#ff6b6b', gradient: 'linear-gradient(90deg, #ff6b6b, #ef4444)' },
   ]
 
   return (
     <Space direction="vertical" style={{ width: '100%' }} size={20}>
       <Row gutter={[20, 20]}>
-        {statCards.map((item) => (
+        {statCards.map((item, index) => (
           <Col xs={24} sm={12} lg={6} key={item.title}>
-            <Card className="ghost-stat-card" loading={loading} bordered={false}>
-              <span className="ghost-stat-icon" style={{ background: `${item.color}15`, color: item.color }}>
+            <Card
+              className="ghost-stat-card ghost-card-enter"
+              loading={loading}
+              bordered={false}
+              style={{
+                '--stat-color': item.color,
+                animationDelay: `${index * 60}ms`,
+              } as CSSProperties}
+            >
+              <span className="ghost-stat-icon" style={{ background: `${item.color}20`, color: item.color, boxShadow: `0 0 16px ${item.color}30` }}>
                 {item.icon}
               </span>
               <div>
-                <div className="ghost-stat-value">{item.value}</div>
+                <div className="ghost-stat-value ghost-number-pop" key={item.value}>
+                  {item.value}
+                </div>
                 <div className="ghost-stat-label">{item.title}</div>
               </div>
             </Card>
           </Col>
         ))}
       </Row>
-      <Row gutter={[20, 20]}>
+      <Row gutter={[20, 20]} style={{ marginTop: 20 }}>
         <Col xs={24} lg={12}>
-          <Card className="ghost-card" title={<span><ClockCircleOutlined /> 调度引擎状态</span>} loading={loading}>
+          <Card className="ghost-card ghost-card-enter" style={{ animationDelay: '240ms' }}
+            title={<span><ClockCircleOutlined /> 调度引擎状态</span>} loading={loading}>
             <Space direction="vertical" size="middle" style={{ width: '100%' }}>
               <Space>
-                <Badge status={schedulerRunning ? 'success' : 'error'} />
-                <span style={{ fontWeight: 500 }}>{schedulerRunning ? '运行中' : '已停止'}</span>
+                <Badge status={schedulerRunning ? 'success' : 'error'} className={schedulerRunning ? 'ghost-status-pulse' : ''} />
+                <span style={{ fontWeight: 500, color: schedulerRunning ? '#4ade80' : '#ff6b6b' }}>
+                  {schedulerRunning ? '运行中' : '已停止'}
+                </span>
               </Space>
-              <div>活跃定时任务：<strong>{schedulerJobs}</strong></div>
-              <Button type="link" style={{ padding: 0 }} onClick={() => navigate('/schedules')}>
+              <div style={{ color: '#94a3b8' }}>活跃定时任务：<strong style={{ color: '#e2e8f0' }}>{schedulerJobs}</strong></div>
+              <Button type="link" style={{ padding: 0, color: '#00d4ff' }} onClick={() => navigate('/schedules')}>
                 查看调度配置
               </Button>
             </Space>
           </Card>
         </Col>
         <Col xs={24} lg={12}>
-          <Card className="ghost-card" title="最近运行记录" loading={loading}>
+          <Card className="ghost-card ghost-card-enter" style={{ animationDelay: '300ms' }}
+            title="最近运行记录" loading={loading}>
             {recentRuns.length === 0 ? (
               <Empty description="暂无运行记录" image={Empty.PRESENTED_IMAGE_SIMPLE} />
             ) : (
-              <Space direction="vertical" style={{ width: '100%' }}>
+              <Space direction="vertical" style={{ width: '100%' }} className="ghost-fade-in">
                 {recentRuns.map((run) => (
-                  <div key={run.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div key={run.id} style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    padding: '8px 12px', borderRadius: 8,
+                    transition: 'background 0.2s ease',
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(0, 212, 255, 0.04)' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+                  >
                     <Space>
-                      <Text code>#{run.id}</Text>
-                      <Text ellipsis style={{ maxWidth: 120 }}>{getTaskName(run.task_id)}</Text>
+                      <Text code style={{ color: '#00d4ff', borderColor: 'rgba(0, 212, 255, 0.2)' }}>#{run.id}</Text>
+                      <Text ellipsis style={{ maxWidth: 120, color: '#e2e8f0' }}>{getTaskName(run.task_id)}</Text>
                     </Space>
                     <Space>
                       <Tag color={run.status === 'success' ? 'green' : run.status === 'failed' ? 'red' : 'orange'}>
                         {run.status === 'success' ? '成功' : run.status === 'failed' ? '失败' : '运行中'}
                       </Tag>
-                      <Text type="secondary" style={{ fontSize: 13 }}>
+                      <Text type="secondary" style={{ fontSize: 13, color: '#94a3b8' }}>
                         {run.started_at ? new Date(run.started_at).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '-'}
                       </Text>
                     </Space>
                   </div>
                 ))}
-                <Button type="link" style={{ padding: 0 }} onClick={() => navigate('/history')}>
+                <Button type="link" style={{ padding: 0, color: '#00d4ff' }} onClick={() => navigate('/history')}>
                   查看全部历史
                 </Button>
               </Space>
