@@ -46,19 +46,21 @@ export default function AppLayout() {
           <span className="ghost-header-extra">任务调度系统 v0.1</span>
         </Header>
         <Content className="ghost-content">
-          <ErrorBoundary>
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/connections" element={<Connections />} />
-              <Route path="/tasks" element={<Tasks />} />
-              <Route path="/schedules" element={<Schedules />} />
-              <Route path="/history" element={<History />} />
-              <Route path="*" element={
-                <Result status="404" title="404" subTitle="页面不存在"
-                  extra={<Button type="primary" onClick={() => navigate('/')}>返回首页</Button>} />
-              } />
-            </Routes>
-          </ErrorBoundary>
+          <div className="ghost-page-enter" key={location.pathname}>
+            <ErrorBoundary>
+              <Routes>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/connections" element={<Connections />} />
+                <Route path="/tasks" element={<Tasks />} />
+                <Route path="/schedules" element={<Schedules />} />
+                <Route path="/history" element={<History />} />
+                <Route path="*" element={
+                  <Result status="404" title="404" subTitle="页面不存在"
+                    extra={<Button type="primary" onClick={() => navigate('/')}>返回首页</Button>} />
+                } />
+              </Routes>
+            </ErrorBoundary>
+          </div>
         </Content>
       </Layout>
     </Layout>
