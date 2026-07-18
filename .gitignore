@@ -39,6 +39,9 @@ frontend-temp/
 # Git worktrees
 .worktrees/
 
+# Subagent-driven development ledger and scratch
+.superpowers/sdd/
+
 # Electron 打包产物
 /electron/dist-electron/
 /electron/node_modules/
