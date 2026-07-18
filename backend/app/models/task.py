@@ -23,4 +23,5 @@ class Task(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
     connection = relationship("Connection", back_populates="tasks")
-    runs = relationship("TaskRun", back_populates="task")
+    # 删除任务时级联删除其运行记录（task_runs.task_id 为 NOT NULL，默认置空会触发约束冲突）
+    runs = relationship("TaskRun", back_populates="task", cascade="all, delete-orphan")
