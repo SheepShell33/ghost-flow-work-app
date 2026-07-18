@@ -1,5 +1,5 @@
 import { autoUpdater } from 'electron-updater'
-import { dialog, ipcMain, BrowserWindow } from 'electron'
+import { ipcMain, BrowserWindow } from 'electron'
 import log from 'electron-log'
 
 function sendUpdateMessage(message: string) {
@@ -14,12 +14,6 @@ export function initUpdater() {
 
   autoUpdater.on('update-available', () => {
     sendUpdateMessage('发现新版本，正在下载...')
-    dialog.showMessageBox({
-      type: 'info',
-      title: '发现新版本',
-      message: '发现新版本，下载完成后将自动安装。',
-      buttons: ['确定'],
-    })
   })
 
   autoUpdater.on('update-not-available', () => {
@@ -28,18 +22,6 @@ export function initUpdater() {
 
   autoUpdater.on('update-downloaded', () => {
     sendUpdateMessage('新版本已下载')
-    dialog
-      .showMessageBox({
-        type: 'info',
-        title: '更新已下载',
-        message: '新版本已下载，是否立即安装并重启？',
-        buttons: ['立即重启', '稍后'],
-      })
-      .then((result) => {
-        if (result.response === 0) {
-          autoUpdater.quitAndInstall()
-        }
-      })
   })
 
   autoUpdater.on('error', (err) => {
@@ -57,8 +39,8 @@ export function initUpdater() {
     }
   })
 
-  // 启动时静默检查更新
-  autoUpdater.checkForUpdates().catch((err) => {
+  // 启动时检查更新并显示系统通知
+  autoUpdater.checkForUpdatesAndNotify().catch((err) => {
     log.error('自动更新检查失败', err)
   })
 }
