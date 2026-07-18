@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Card, Col, Row, Badge, Button, Empty, Space, Tag, Typography, message as msg,
+  Card, Col, Row, Button, Empty, Space, message as msg,
 } from 'antd'
 import {
   LinkOutlined, FileTextOutlined, CheckCircleOutlined,
@@ -14,8 +14,6 @@ import type { TaskItem } from '../../api/tasks'
 import { getSchedulerStatus } from '../../api/schedules'
 import { listTaskRuns } from '../../api/task-runs'
 import type { TaskRunItem } from '../../api/task-runs'
-
-const { Text } = Typography
 
 export default function Dashboard() {
   const navigate = useNavigate()
@@ -46,10 +44,10 @@ export default function Dashboard() {
   }, [])
 
   const statCards = [
-    { title: '数据库连接', value: connCount, icon: <LinkOutlined />, color: '#00d4ff' },
-    { title: '任务总数', value: taskCount, icon: <FileTextOutlined />, color: '#7c3aed' },
-    { title: '成功执行', value: successCount, icon: <CheckCircleOutlined />, color: '#4ade80' },
-    { title: '失败执行', value: failCount, icon: <CloseCircleOutlined />, color: '#ff6b6b' },
+    { title: '数据库连接', micro: 'CONNECTIONS', value: connCount, icon: <LinkOutlined />, color: '#00d4ff' },
+    { title: '任务总数', micro: 'TASKS', value: taskCount, icon: <FileTextOutlined />, color: '#7c3aed' },
+    { title: '成功执行', micro: 'SUCCEEDED', value: successCount, icon: <CheckCircleOutlined />, color: '#4ade80' },
+    { title: '失败执行', micro: 'FAILED', value: failCount, icon: <CloseCircleOutlined />, color: '#ff6b6b' },
   ]
 
   return (
@@ -66,7 +64,7 @@ export default function Dashboard() {
                 animationDelay: `${index * 60}ms`,
               } as CSSProperties}
             >
-              <span className="ghost-stat-icon" style={{ background: `${item.color}20`, color: item.color, boxShadow: `0 0 16px ${item.color}30` }}>
+              <span className="ghost-stat-icon" style={{ background: `${item.color}18`, color: item.color }}>
                 {item.icon}
               </span>
               <div>
@@ -74,24 +72,27 @@ export default function Dashboard() {
                   {item.value}
                 </div>
                 <div className="ghost-stat-label">{item.title}</div>
+                <div className="ghost-stat-micro">{item.micro}</div>
               </div>
             </Card>
           </Col>
         ))}
       </Row>
-      <Row gutter={[20, 20]}>
+      <Row gutter={[20, 20]} style={{ marginTop: 20 }}>
         <Col xs={24} lg={12}>
           <Card className="ghost-card ghost-card-enter" style={{ animationDelay: '240ms' }}
             title={<span><ClockCircleOutlined /> 调度引擎状态</span>} loading={loading}>
             <Space direction="vertical" size="middle" style={{ width: '100%' }}>
               <Space>
-                <Badge status={schedulerRunning ? 'success' : 'error'} className={schedulerRunning ? 'ghost-status-pulse' : ''} />
-                <span style={{ fontWeight: 500, color: schedulerRunning ? '#4ade80' : '#ff6b6b' }}>
+                <span className={`ghost-status-dot ${schedulerRunning ? 'ghost-status-dot--success ghost-status-pulse' : 'ghost-status-dot--error'}`} />
+                <span style={{ fontWeight: 600, fontSize: 16, color: schedulerRunning ? 'var(--ghost-success)' : 'var(--ghost-error)' }}>
                   {schedulerRunning ? '运行中' : '已停止'}
                 </span>
               </Space>
-              <div style={{ color: '#94a3b8' }}>活跃定时任务：<strong style={{ color: '#e2e8f0' }}>{schedulerJobs}</strong></div>
-              <Button type="link" style={{ padding: 0, color: '#00d4ff' }} onClick={() => navigate('/schedules')}>
+              <div style={{ color: 'var(--ghost-text-secondary)' }}>
+                活跃定时任务：<strong className="ghost-mono" style={{ color: 'var(--ghost-text)' }}>{schedulerJobs}</strong>
+              </div>
+              <Button type="link" style={{ padding: 0, color: 'var(--ghost-primary)' }} onClick={() => navigate('/schedules')}>
                 查看调度配置
               </Button>
             </Space>
@@ -103,34 +104,26 @@ export default function Dashboard() {
             {recentRuns.length === 0 ? (
               <Empty description="暂无运行记录" image={Empty.PRESENTED_IMAGE_SIMPLE} />
             ) : (
-              <Space direction="vertical" style={{ width: '100%' }} className="ghost-fade-in">
-                {recentRuns.map((run) => (
-                  <div key={run.id} style={{
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                    padding: '8px 12px', borderRadius: 8,
-                    transition: 'background 0.2s ease',
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(0, 212, 255, 0.04)' }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
-                  >
-                    <Space>
-                      <Text code style={{ color: '#00d4ff', borderColor: 'rgba(0, 212, 255, 0.2)' }}>#{run.id}</Text>
-                      <Text ellipsis style={{ maxWidth: 120, color: '#e2e8f0' }}>{getTaskName(run.task_id)}</Text>
-                    </Space>
-                    <Space>
-                      <Tag color={run.status === 'success' ? 'green' : run.status === 'failed' ? 'red' : 'orange'}>
-                        {run.status === 'success' ? '成功' : run.status === 'failed' ? '失败' : '运行中'}
-                      </Tag>
-                      <Text type="secondary" style={{ fontSize: 13, color: '#94a3b8' }}>
-                        {run.started_at ? new Date(run.started_at).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '-'}
-                      </Text>
-                    </Space>
-                  </div>
-                ))}
-                <Button type="link" style={{ padding: 0, color: '#00d4ff' }} onClick={() => navigate('/history')}>
+              <div className="ghost-fade-in">
+                {recentRuns.map((run) => {
+                  const time = run.started_at ? new Date(run.started_at) : null
+                  const pad = (n: number) => String(n).padStart(2, '0')
+                  const hhmmss = time ? `${pad(time.getHours())}:${pad(time.getMinutes())}:${pad(time.getSeconds())}` : '--:--:--'
+                  const statusClass = run.status === 'success' ? 'ghost-log-status--ok' : run.status === 'failed' ? 'ghost-log-status--fail' : 'ghost-log-status--run'
+                  const statusText = run.status === 'success' ? '[ OK ]' : run.status === 'failed' ? '[FAIL]' : '[RUN ]'
+                  return (
+                    <div key={run.id} className="ghost-log-line">
+                      <span className="ghost-log-time">{hhmmss}</span>
+                      <span className="ghost-dim">#{run.id}</span>
+                      <span className="ghost-log-name">{getTaskName(run.task_id)}</span>
+                      <span className={`ghost-log-status ${statusClass}`}>{statusText}</span>
+                    </div>
+                  )
+                })}
+                <Button type="link" style={{ padding: '8px 0 0', color: 'var(--ghost-primary)' }} onClick={() => navigate('/history')}>
                   查看全部历史
                 </Button>
-              </Space>
+              </div>
             )}
           </Card>
         </Col>
