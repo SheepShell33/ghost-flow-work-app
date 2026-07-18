@@ -27,8 +27,7 @@
     },
     "files": [
       "dist/**/*",
-      "assets/**/*",
-      "resources/ghost-flow-backend.exe"
+      "assets/**/*"
     ],
     "extraResources": [
       {
