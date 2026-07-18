@@ -10,6 +10,7 @@ import Tasks from '../pages/Tasks'
 import Schedules from '../pages/Schedules'
 import History from '../pages/History'
 import ErrorBoundary from './ErrorBoundary'
+import HeaderExtras from './HeaderExtras'
 
 const { Header, Sider, Content } = Layout
 
@@ -30,7 +31,11 @@ export default function AppLayout() {
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Sider theme="dark" width={220} breakpoint="lg" collapsedWidth={64} className="ghost-sider">
-        <div className="ghost-logo">Ghost Flow</div>
+        <div className="ghost-logo">
+          <span className="ghost-logo-user">ghost@flow</span>
+          <span className="ghost-logo-path">:~$</span>
+          <span className="ghost-cursor">▍</span>
+        </div>
         <Menu
           theme="dark"
           mode="inline"
@@ -43,7 +48,7 @@ export default function AppLayout() {
       <Layout>
         <Header className="ghost-header">
           <span className="ghost-header-title">{currentLabel}</span>
-          <span className="ghost-header-extra">任务调度系统 v0.1</span>
+          <HeaderExtras />
         </Header>
         <Content className="ghost-content">
           <div className="ghost-page-enter" key={location.pathname}>
