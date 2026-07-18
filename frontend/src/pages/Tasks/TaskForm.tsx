@@ -68,6 +68,10 @@ export default function TaskForm({ initial, onSuccess }: Props) {
     }
     delete data.cron_expr
     delete data.cron_tz
+    // Python 任务不支持 CSV 导出，清除可能残留的路径值
+    if (data.type === 'python') {
+      data.output_path = null
+    }
 
     try {
       if (initial) {
@@ -161,9 +165,12 @@ export default function TaskForm({ initial, onSuccess }: Props) {
             placeholder={taskType === 'sql' ? 'SELECT * FROM my_table LIMIT 100' : '# Python 代码\nprint("hello")'} />
         </Form.Item>
 
-        <Form.Item name="output_path" label="CSV 导出路径（可选）">
-          <Input placeholder="例如：/data/report.csv" />
-        </Form.Item>
+        {taskType === 'sql' && (
+          <Form.Item name="output_path" label="CSV 导出路径（可选）"
+            tooltip="仅 SQL 任务可用：查询结果将保存为该路径的 CSV 文件">
+            <Input placeholder="例如：/data/report.csv" />
+          </Form.Item>
+        )}
 
         <Form.Item name="tags" label="标签">
           <Select mode="tags" placeholder="输入标签后回车" tokenSeparators={[',']} />
@@ -222,12 +229,14 @@ export default function TaskForm({ initial, onSuccess }: Props) {
             <DataPreview data={testResult as PreviewData} />
           ) : (
             <pre style={{
-              background: '#f5f5f5', padding: 12, borderRadius: 4,
-              maxHeight: 400, overflow: 'auto',
+              background: 'var(--ghost-inset)', padding: 12, borderRadius: 6,
+              border: '1px solid var(--ghost-border)',
+              maxHeight: 400, overflow: 'auto', margin: 0,
+              color: 'var(--ghost-text)',
             }}>
-              <Text>{(testResult as PythonResult).stdout || '(无输出)'}</Text>
+              <Text style={{ color: 'var(--ghost-text)' }}>{(testResult as PythonResult).stdout || '(无输出)'}</Text>
               {(testResult as PythonResult).stderr && (
-                <div><Text type="danger">{(testResult as PythonResult).stderr}</Text></div>
+                <div><Text style={{ color: 'var(--ghost-error)' }}>{(testResult as PythonResult).stderr}</Text></div>
               )}
               <Tag color={(testResult as PythonResult).success ? 'green' : 'red'} style={{ marginTop: 8 }}>
                 exit code: {(testResult as PythonResult).exit_code}

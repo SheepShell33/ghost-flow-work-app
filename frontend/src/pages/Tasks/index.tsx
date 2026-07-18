@@ -281,15 +281,18 @@ export default function Tasks() {
             ) : resultData.result_preview && 'stdout' in resultData.result_preview ? (
               <Card className="ghost-card" size="small" title="Python 输出">
                 <pre style={{
-                  background: '#f6ffed', padding: 12, borderRadius: 4,
+                  background: 'var(--ghost-inset)', padding: 12, borderRadius: 6,
+                  border: '1px solid var(--ghost-border)',
                   maxHeight: 400, overflow: 'auto', margin: 0,
+                  color: 'var(--ghost-text)',
                 }}>
-                  <Text>{(resultData.result_preview as PythonResult).stdout || '(无输出)'}</Text>
+                  <Text style={{ color: 'var(--ghost-text)' }}>{(resultData.result_preview as PythonResult).stdout || '(无输出)'}</Text>
                 </pre>
                 {(resultData.result_preview as PythonResult).stderr && (
                   <pre style={{
-                    background: '#fff2f0', padding: 12, borderRadius: 4,
-                    maxHeight: 200, overflow: 'auto', marginTop: 12, color: '#ff4d4f',
+                    background: 'rgba(255, 107, 107, 0.08)', padding: 12, borderRadius: 6,
+                    border: '1px solid rgba(255, 107, 107, 0.25)',
+                    maxHeight: 200, overflow: 'auto', marginTop: 12, color: 'var(--ghost-error)',
                   }}>
                     {(resultData.result_preview as PythonResult).stderr}
                   </pre>
