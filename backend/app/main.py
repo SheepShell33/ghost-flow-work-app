@@ -10,7 +10,7 @@ from .models.task_run import TaskRun
 from .services.scheduler import init_scheduler, shutdown_scheduler
 from .core.logging import setup_logging
 
-logger = setup_logging()
+logger = setup_logging(str(settings.data_dir / "logs"))
 
 
 def _reset_stale_runs():

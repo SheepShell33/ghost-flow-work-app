@@ -3,10 +3,12 @@ from pathlib import Path
 
 from loguru import logger
 
+from app.core.config import settings
+
 
 def setup_logging(log_dir: str | None = None):
     if log_dir is None:
-        log_dir = str(Path(__file__).resolve().parent.parent.parent.parent / "data" / "logs")
+        log_dir = str(settings.data_dir / "logs")
 
     Path(log_dir).mkdir(parents=True, exist_ok=True)
 
