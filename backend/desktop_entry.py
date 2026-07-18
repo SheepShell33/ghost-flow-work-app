@@ -1,6 +1,8 @@
 import os
 import uvicorn
 
+import app.main  # noqa: F401
+
 
 def main():
     port = int(os.environ.get("PORT", "17892"))
