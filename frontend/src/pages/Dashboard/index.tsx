@@ -78,7 +78,7 @@ export default function Dashboard() {
           </Col>
         ))}
       </Row>
-      <Row gutter={[20, 20]} style={{ marginTop: 20 }}>
+      <Row gutter={[20, 20]}>
         <Col xs={24} lg={12}>
           <Card className="ghost-card ghost-card-enter" style={{ animationDelay: '240ms' }}
             title={<span><ClockCircleOutlined /> 调度引擎状态</span>} loading={loading}>
