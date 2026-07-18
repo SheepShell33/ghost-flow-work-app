@@ -22,7 +22,6 @@
   /* 边框纪律 — 细边框优先于阴影 */
   --ghost-border: rgba(255, 255, 255, 0.07);
   --ghost-border-strong: rgba(255, 255, 255, 0.12);
-  --ghost-border-accent: rgba(0, 212, 255, 0.35);
 
   /* 字体 */
   --ghost-font-mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
@@ -395,9 +394,18 @@ body {
     animation: ghostStatusPulse 2s ease-in-out infinite;
   }
 
-  /* 运行中状态点脉冲 */
+  /* 运行中状态点脉冲（青色） */
+  @keyframes ghostStatusPulsePrimary {
+    0%, 100% {
+      box-shadow: 0 0 0 0 rgba(0, 212, 255, 0.4);
+    }
+    50% {
+      box-shadow: 0 0 0 6px rgba(0, 212, 255, 0);
+    }
+  }
+
   .ghost-status-dot--running {
-    animation: ghostStatusPulse 2s ease-in-out infinite;
+    animation: ghostStatusPulsePrimary 2s ease-in-out infinite;
   }
 
   /* 淡入 */
@@ -466,17 +474,6 @@ body {
 
 .ant-menu-dark .ant-menu-item-selected {
   background: rgba(0, 212, 255, 0.12) !important;
-}
-
-/* 卡片 */
-.ant-card {
-  background: var(--ghost-panel) !important;
-  border-color: var(--ghost-border) !important;
-  color: var(--ghost-text) !important;
-}
-
-.ant-card-bordered {
-  border: 1px solid var(--ghost-border) !important;
 }
 
 /* 表格 */

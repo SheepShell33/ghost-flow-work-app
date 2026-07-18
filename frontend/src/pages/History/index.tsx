@@ -77,7 +77,7 @@ export default function History() {
         <Space size={4}>
           <Text className="ghost-mono" strong style={{ fontSize: 13, color: 'var(--ghost-primary)' }}>#{id}</Text>
           <Tooltip title="复制 Run ID">
-            <CopyOutlined style={{ cursor: 'pointer', color: '#999', fontSize: 12 }}
+            <CopyOutlined style={{ cursor: 'pointer', color: 'var(--ghost-text-dim)', fontSize: 12 }}
               onClick={async () => {
                 try { await navigator.clipboard.writeText(String(id)); message.success('已复制 Run ID') }
                 catch { message.error('复制失败') }
@@ -120,12 +120,12 @@ export default function History() {
       render: (_: unknown, r: TaskRunItem) => {
         const text = formatDuration(r.started_at, r.finished_at)
         // 按耗时阈值变色：<1s 绿色，<10s 黄色，其余红色
-        let color = '#94a3b8'
+        let color = 'var(--ghost-text-secondary)'
         if (r.started_at) {
           const diff = (r.finished_at ? new Date(r.finished_at).getTime() : Date.now()) - new Date(r.started_at).getTime()
-          if (diff < 1000) color = '#4ade80'
-          else if (diff < 10000) color = '#fbbf24'
-          else color = '#ff6b6b'
+          if (diff < 1000) color = 'var(--ghost-success)'
+          else if (diff < 10000) color = 'var(--ghost-warning)'
+          else color = 'var(--ghost-error)'
         }
         return <span className="ghost-mono" style={{ color, fontSize: 13 }}>{text}</span>
       },
