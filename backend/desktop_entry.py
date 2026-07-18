@@ -1,7 +1,14 @@
 import os
+import sys
+
 import uvicorn
 
 import app.main  # noqa: F401
+
+# PyInstaller onefile extracts bundles to a temp directory; switch cwd there
+# so relative datas like alembic/ and static/dist/ resolve correctly.
+if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+    os.chdir(sys._MEIPASS)
 
 
 def main():
