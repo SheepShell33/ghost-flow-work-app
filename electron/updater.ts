@@ -1,5 +1,5 @@
 import { autoUpdater } from 'electron-updater'
-import { dialog, ipcMain, BrowserWindow } from 'electron'
+import { app, dialog, ipcMain, BrowserWindow } from 'electron'
 import log from 'electron-log'
 
 function sendUpdateMessage(message: string) {
@@ -51,13 +51,19 @@ export function initUpdater() {
   ipcMain.handle('updater:check', async () => {
     try {
       const result = await autoUpdater.checkForUpdates()
-      if (result?.updateInfo?.version) {
-        const version = result.updateInfo.version
-        sendUpdateMessage(`发现新版本: ${version}`)
-        return { success: true, updateInfo: result.updateInfo }
+      if (!result?.updateInfo?.version) {
+        sendUpdateMessage('当前已是最新版本')
+        return { success: true, hasUpdate: false, version: null, currentVersion: app.getVersion() }
       }
-      sendUpdateMessage('当前已是最新版本')
-      return { success: true, updateInfo: result?.updateInfo }
+      const version = result.updateInfo.version
+      const currentVersion = app.getVersion()
+      const hasUpdate = version !== currentVersion
+      if (hasUpdate) {
+        sendUpdateMessage(`发现新版本: ${version}`)
+      } else {
+        sendUpdateMessage('当前已是最新版本')
+      }
+      return { success: true, hasUpdate, version, currentVersion }
     } catch (err: any) {
       sendUpdateMessage(`检查更新失败: ${err.message}`)
       log.error('手动检查更新失败', err)
