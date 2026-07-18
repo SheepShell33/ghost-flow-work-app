@@ -1,7 +1,10 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
+import sys
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from .api.router import api_router
 from .core.config import settings
@@ -61,3 +64,23 @@ app.include_router(api_router)
 @app.get("/api/health")
 def health():
     return {"status": "ok", "version": settings.app_version}
+
+
+def _get_static_dir() -> Path | None:
+    """查找前端静态资源目录：开发时或 PyInstaller onefile 临时目录。"""
+    # 开发模式：backend/static/dist
+    dev_static = Path(__file__).resolve().parent.parent / "static" / "dist"
+    if dev_static.exists():
+        return dev_static
+    # PyInstaller onefile 解压目录
+    meipass = getattr(sys, "_MEIPASS", None)
+    if meipass:
+        bundle_static = Path(meipass) / "static" / "dist"
+        if bundle_static.exists():
+            return bundle_static
+    return None
+
+
+_static_dir = _get_static_dir()
+if _static_dir:
+    app.mount("/", StaticFiles(directory=_static_dir, html=True), name="static")
