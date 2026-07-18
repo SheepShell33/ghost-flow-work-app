@@ -35,3 +35,6 @@ data/frontend.log
 
 # Project-specific
 frontend-temp/
+
+# Git worktrees
+.worktrees/
