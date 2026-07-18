@@ -57,5 +57,6 @@ pnpm build                        # tsc -b && vite build
 - Database schema is managed by Alembic; new environments run `uv run alembic upgrade head`.
 - Redshift Okta SSO uses `redshift-connector` with `OktaCredentialsProvider` (config: `idp_tenant`, `client_id`, `plugin_name`).
 - Python executor runs in `subprocess` sandbox; SQL executor uses `ThreadPoolExecutor` for timeout.
-- Frontend uses Ant Design 6, all pages are under `src/pages/`, layout in `src/components/AppLayout.tsx`.
+- Frontend uses Ant Design 6 (`darkAlgorithm` via `ConfigProvider` in `main.tsx`), all pages are under `src/pages/`, layout in `src/components/AppLayout.tsx`.
+- Frontend styling: `src/main.tsx` MUST keep `import './index.css'`（曾因缺失导致自定义样式从未加载）. Global styles use `.ghost-*` classes and `--ghost-*` CSS variables defined in `src/index.css`; component tokens are aligned in `main.tsx` `ConfigProvider`. Do NOT add `!important` overrides on antd preset-color components (e.g. `.ant-tag`) — use `ConfigProvider` component tokens instead.
 - After any significant feature update, bugfix, or other change, run `git commit` locally (do not push automatically).
