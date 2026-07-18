@@ -55,6 +55,11 @@ uv run --with pyinstaller pyinstaller `
     --add-data "static/dist;static/dist" `
     --add-data "alembic;alembic" `
     --add-data "alembic.ini;." `
+    --collect-submodules app `
+    --paths $backend `
+    --hidden-import sqlalchemy.ext.automap `
+    --hidden-import apscheduler.triggers.cron `
+    --hidden-import pandas._libs.tslibs.base `
     --distpath $electronResources `
     --clean `
     desktop_entry.py
