@@ -6,7 +6,7 @@ $root = Split-Path -Parent $MyInvocation.MyCommand.Path | Split-Path -Parent
 $frontend = Join-Path $root "frontend"
 $backend = Join-Path $root "backend"
 $electron = Join-Path $root "electron"
-$backendStatic = Join-Path $backend "static" "dist"
+$backendStatic = Join-Path (Join-Path $backend "static") "dist"
 $electronResources = Join-Path $electron "resources"
 
 # 1. 生成图标
@@ -73,9 +73,9 @@ if ($LASTEXITCODE -ne 0) { throw "pnpm install (electron) failed with exit code 
 pnpm dist
 if ($LASTEXITCODE -ne 0) { throw "pnpm dist failed with exit code $LASTEXITCODE" }
 
-$electronPackage = Get-Content "$electron\package.json" | ConvertFrom-Json
+$electronPackage = Get-Content "$electron\package.json" -Raw | ConvertFrom-Json
 $installerName = "$($electronPackage.productName) Setup $($electronPackage.version).exe"
-$installer = Join-Path $electron "dist-electron" $installerName
+$installer = Join-Path (Join-Path $electron "dist-electron") $installerName
 if (Test-Path $installer) {
     Write-Host "Build complete: $installer" -ForegroundColor Green
 } else {
