@@ -1,0 +1,55 @@
+{
+  "name": "ghost-flow-desktop",
+  "version": "0.1.0",
+  "description": "Ghost Flow Work App Desktop",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc",
+    "dist": "pnpm build && electron-builder",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "dependencies": {
+    "axios": "^1.7.2",
+    "electron-log": "^5.1.5",
+    "electron-updater": "^6.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.9",
+    "electron": "^31.0.2",
+    "electron-builder": "^24.13.3",
+    "typescript": "^5.5.2"
+  },
+  "build": {
+    "appId": "com.ghostflow.desktop",
+    "productName": "Ghost Flow Work App",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "dist/**/*",
+      "assets/**/*",
+      "resources/ghost-flow-backend.exe"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/ghost-flow-backend.exe",
+        "to": "ghost-flow-backend.exe"
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "SheepShell33",
+      "repo": "ghost-flow-work-app"
+    }
+  }
+}
