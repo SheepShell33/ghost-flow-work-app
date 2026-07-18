@@ -127,7 +127,7 @@ export default function Tasks() {
       render: (name: string, record: TaskItem) => (
         <Space>
           <Text strong>{name}</Text>
-          <Text type="secondary" style={{ fontSize: 12 }}>#{record.id}</Text>
+          <Text className="ghost-mono ghost-dim" style={{ fontSize: 12 }}>#{record.id}</Text>
         </Space>
       ),
     },
@@ -171,23 +171,18 @@ export default function Tasks() {
     {
       title: '调度',
       key: 'enabled',
-      width: 110,
+      width: 140,
       render: (_: unknown, record: TaskItem) => (
         record.schedule_config ? (
-          <Space>
-            {record.enabled && (
-              <span style={{
-                display: 'inline-block', width: 8, height: 8, borderRadius: '50%',
-                background: '#4ade80', boxShadow: '0 0 8px #4ade80',
-              }} className="ghost-status-pulse" />
-            )}
+          <Space size={8}>
+            <span className={`ghost-status-dot ${record.enabled ? 'ghost-status-dot--success ghost-status-pulse' : 'ghost-status-dot--idle'}`} />
             <Switch checked={record.enabled} size="small" onChange={() => handleToggle(record)} />
-            <Tag color={record.enabled ? 'green' : 'default'} style={{ margin: 0 }}>
-              {record.enabled ? '启用' : '停用'}
-            </Tag>
+            <span style={{ fontSize: 13, color: record.enabled ? 'var(--ghost-text)' : 'var(--ghost-text-dim)' }}>
+              {record.enabled ? '已启用' : '已停用'}
+            </span>
           </Space>
         ) : (
-          <Tag style={{ margin: 0 }}>未配置</Tag>
+          <span className="ghost-dim" style={{ fontSize: 13 }}>未配置</span>
         )
       ),
     },

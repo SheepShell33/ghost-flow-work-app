@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Card, Table, Tag, Badge, Space, Empty, Switch, message, Alert, Typography } from 'antd'
+import { Card, Table, Tag, Space, Empty, Switch, message, Alert, Typography } from 'antd'
 import { listSchedules, getSchedulerStatus } from '../../api/schedules'
 import type { ScheduleItem, SchedulerStatus } from '../../api/schedules'
 import { toggleTask } from '../../api/tasks'
@@ -42,7 +42,7 @@ export default function Schedules() {
       render: (name: string, record: ScheduleItem) => (
         <Space>
           <Text strong>{name}</Text>
-          <Text type="secondary" style={{ fontSize: 12 }}>#{record.id}</Text>
+          <Text className="ghost-mono ghost-dim" style={{ fontSize: 12 }}>#{record.id}</Text>
         </Space>
       ),
     },
@@ -60,8 +60,8 @@ export default function Schedules() {
       render: (_: unknown, r: ScheduleItem) => {
         try {
           const cfg = JSON.parse(r.schedule_config)
-          return <Tag style={{ fontFamily: 'monospace' }}>{cfg.cron || '-'}</Tag>
-        } catch { return '-' }
+          return <span className="ghost-mono" style={{ color: 'var(--ghost-primary)', fontSize: 13 }}>{cfg.cron || '-'}</span>
+        } catch { return <span className="ghost-dim">-</span> }
       },
     },
     {
@@ -81,7 +81,7 @@ export default function Schedules() {
         else if (diff < 60 * 60_000) rel = `${Math.round(diff / 60_000)} 分钟后`
         else if (diff < 24 * 60 * 60_000) rel = `${Math.round(diff / (60 * 60_000))} 小时后`
         else rel = `${Math.round(diff / (24 * 60 * 60_000))} 天后`
-        return <span>{rel}（{abs}）</span>
+        return <span className="ghost-mono" style={{ fontSize: 13 }}>{rel}（{abs}）</span>
       },
     },
     {
@@ -97,21 +97,20 @@ export default function Schedules() {
   return (
     <Space direction="vertical" style={{ width: '100%' }} size={16}>
       <Card className="ghost-card ghost-card-enter" loading={loading}
-        style={{ background: 'linear-gradient(135deg, rgba(0, 212, 255, 0.03), rgba(124, 58, 237, 0.03))' }}>
+        style={{ background: 'linear-gradient(135deg, rgba(0, 212, 255, 0.04), rgba(124, 58, 237, 0.04))' }}>
         <Space size="large" align="center">
           <Space>
-            <Badge status={status?.running ? 'success' : 'error'} className={status?.running ? 'ghost-status-pulse' : ''} />
-            <span style={{ fontSize: 18, fontWeight: 600, color: status?.running ? '#4ade80' : '#ff6b6b' }}>
+            <span className={`ghost-status-dot ${status?.running ? 'ghost-status-dot--success ghost-status-pulse' : 'ghost-status-dot--error'}`} />
+            <span style={{ fontSize: 18, fontWeight: 600, color: status?.running ? 'var(--ghost-success)' : 'var(--ghost-error)' }}>
               {status?.running ? '运行中' : '已停止'}
             </span>
           </Space>
-          <div style={{ color: '#94a3b8' }}>活跃定时任务：<strong style={{ color: '#e2e8f0' }}>{status?.jobs.length ?? 0}</strong></div>
-          <div style={{ color: '#94a3b8' }}>
+          <div style={{ color: 'var(--ghost-text-secondary)' }}>
+            活跃定时任务：<strong className="ghost-mono" style={{ color: 'var(--ghost-text)' }}>{status?.jobs.length ?? 0}</strong>
+          </div>
+          <div style={{ color: 'var(--ghost-text-secondary)' }}>
             下次触发：
-            <strong style={{
-              color: '#00d4ff',
-              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-            }}>
+            <strong className="ghost-mono" style={{ color: 'var(--ghost-primary)' }}>
               {status?.jobs.length
                 ? new Date(Math.min(...status.jobs.map((j) => new Date(j.next_run_time!).getTime()))).toLocaleString('zh-CN')
                 : '-'}
