@@ -1,4 +1,5 @@
 import { app, BrowserWindow, Tray, Menu, dialog, nativeImage, ipcMain } from 'electron'
+import { autoUpdater } from 'electron-updater'
 import { spawn, ChildProcessWithoutNullStreams } from 'child_process'
 import path from 'path'
 import fs from 'fs'
@@ -96,8 +97,7 @@ function createTray() {
     {
       label: '检查更新',
       click: () => {
-        // updater 模块提供手动检查能力，此处仅作占位触发
-        // 具体实现见 updater.ts
+        autoUpdater.checkForUpdates().catch(() => {})
       },
     },
     { type: 'separator' },
