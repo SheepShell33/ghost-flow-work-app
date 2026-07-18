@@ -48,8 +48,13 @@ export function initUpdater() {
   })
 
   ipcMain.handle('updater:check', async () => {
-    await autoUpdater.checkForUpdates()
-    return { success: true }
+    try {
+      const result = await autoUpdater.checkForUpdates()
+      return { success: true, updateInfo: result?.updateInfo }
+    } catch (err) {
+      log.error('手动检查更新失败', err)
+      return { success: false, error: err instanceof Error ? err.message : String(err) }
+    }
   })
 
   // 启动时静默检查更新

@@ -97,8 +97,9 @@ function createTray() {
     {
       label: '检查更新',
       click: () => {
-        autoUpdater.checkForUpdates().catch((err) => {
-          dialog.showErrorBox('检查更新失败', err.message)
+        autoUpdater.checkForUpdates().catch((err: unknown) => {
+          const message = err instanceof Error ? err.message : String(err)
+          dialog.showErrorBox('检查更新失败', message)
         })
       },
     },
