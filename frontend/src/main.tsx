@@ -14,11 +14,19 @@ createRoot(document.getElementById('root')!).render(
           algorithm: theme.darkAlgorithm,
           token: {
             colorPrimary: '#00d4ff',
+            colorBgLayout: '#07090d',
+            colorBgContainer: '#0c0f16',
+            colorBgElevated: '#11151f',
+            colorBorder: 'rgba(255, 255, 255, 0.12)',
+            colorBorderSecondary: 'rgba(255, 255, 255, 0.07)',
+            colorText: '#e6eaf2',
+            colorTextSecondary: '#8b94a7',
+            borderRadius: 10,
           },
           components: {
             Tag: {
               defaultBg: 'rgba(148, 163, 184, 0.1)',
-              defaultColor: '#94a3b8',
+              defaultColor: '#8b94a7',
             },
           },
         }}
