@@ -38,3 +38,15 @@ frontend-temp/
 
 # Git worktrees
 .worktrees/
+
+# Electron 打包产物
+/electron/dist-electron/
+/electron/node_modules/
+/electron/resources/
+
+# 后端打包产物
+/backend/build/
+/backend/dist/
+/backend/*.spec
+/backend/static/dist/
+
