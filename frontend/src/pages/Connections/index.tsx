@@ -49,7 +49,7 @@ export default function Connections() {
       render: (name: string, record: ConnectionItem) => (
         <Space>
           <Text strong>{name}</Text>
-          <Text type="secondary" style={{ fontSize: 12 }}>#{record.id}</Text>
+          <Text className="ghost-mono ghost-dim" style={{ fontSize: 12 }}>#{record.id}</Text>
         </Space>
       ),
     },
@@ -72,7 +72,7 @@ export default function Connections() {
         try {
           const cfg = JSON.parse(record.config)
           const text = record.type === 'sqlite' ? (cfg.file_path || '-') : (cfg.host || cfg.database || '-')
-          return <Text style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace', color: '#94a3b8' }}>{text}</Text>
+          return <Text className="ghost-mono" style={{ color: 'var(--ghost-text-secondary)' }}>{text}</Text>
         } catch {
           return <Text type="secondary">-</Text>
         }

@@ -75,7 +75,7 @@ export default function History() {
       title: 'Run ID', dataIndex: 'id', key: 'id', width: 100, fixed: 'left' as const,
       render: (id: number) => (
         <Space size={4}>
-          <Text code strong style={{ fontSize: 13 }}>#{id}</Text>
+          <Text className="ghost-mono" strong style={{ fontSize: 13, color: 'var(--ghost-primary)' }}>#{id}</Text>
           <Tooltip title="复制 Run ID">
             <CopyOutlined style={{ cursor: 'pointer', color: '#999', fontSize: 12 }}
               onClick={async () => {
@@ -90,23 +90,30 @@ export default function History() {
       title: '任务', key: 'task', width: 180,
       render: (_: unknown, r: TaskRunItem) => (
         <Space size={4}>
-          <Tag style={{ margin: 0 }}>#{r.task_id}</Tag>
+          <span className="ghost-mono ghost-dim" style={{ fontSize: 13 }}>#{r.task_id}</span>
           <Text ellipsis style={{ maxWidth: 120 }}>{getTaskName(r.task_id)}</Text>
         </Space>
       ),
     },
     {
-      title: '状态', dataIndex: 'status', key: 'status', width: 90,
+      title: '状态', dataIndex: 'status', key: 'status', width: 110,
       render: (s: string) => {
-        const color = s === 'success' ? 'green' : s === 'failed' ? 'red' : 'orange'
+        const dotClass = s === 'success' ? 'ghost-status-dot--success' : s === 'failed' ? 'ghost-status-dot--error' : 'ghost-status-dot--running'
         const label = s === 'success' ? '成功' : s === 'failed' ? '失败' : '运行中'
-        return <Tag color={color}>{label}</Tag>
+        return (
+          <Space size={6}>
+            <span className={`ghost-status-dot ${dotClass}`} />
+            <span style={{ fontSize: 13 }}>{label}</span>
+          </Space>
+        )
       },
     },
     { title: '行数', dataIndex: 'row_count', key: 'row_count', width: 70, align: 'right' as const, render: (v: number | null) => v ?? '-' },
     {
       title: '开始时间', dataIndex: 'started_at', key: 'started_at', width: 140,
-      render: (v: string) => v ? new Date(v).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '-',
+      render: (v: string) => v
+        ? <span className="ghost-mono" style={{ fontSize: 13 }}>{new Date(v).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+        : '-',
     },
     {
       title: '耗时', key: 'duration', width: 90, align: 'right' as const,
@@ -120,7 +127,7 @@ export default function History() {
           else if (diff < 10000) color = '#fbbf24'
           else color = '#ff6b6b'
         }
-        return <span style={{ color, fontVariantNumeric: 'tabular-nums' }}>{text}</span>
+        return <span className="ghost-mono" style={{ color, fontSize: 13 }}>{text}</span>
       },
     },
   ]
