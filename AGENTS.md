@@ -42,6 +42,7 @@ pnpm build                        # tsc -b && vite build
 - Prerequisite tasks: `tasks.prerequisite_task_id` column; executor checks prerequisite success before running scheduled/manual tasks.
 - Auto deps: `services/deps_installer.py` parses Python `import`/`from` statements via `ast`, maps import names to pip package names (`IMPORT_TO_PACKAGE`: sklearn→scikit-learn, yaml→pyyaml, PIL→Pillow, cv2→opencv-python, bs4→beautifulsoup4), installs missing packages via pip. **安装失败抛 `RuntimeError`（含 pip stderr 摘要）**：`/api/execute/python` 转为 400，`/api/execute/tasks/{id}/test` 转为 400，`task_runner` 写入 `TaskRun.error_message`。
 - Connection test: `POST /api/connections/test`（body `{type, config(JSON 字符串)}`）不落库，按 type 取 connector 执行 `SELECT 1`，返回 `{success, message}`；定义在 `/{connection_id}` 之前避免被路径参数捕获。
+- Task retry: `tasks.retry_limit`/`retry_delay`/`timeout_seconds` columns; failed runs (non-ValueError, not cancelled) schedule one-shot APScheduler date jobs via `scheduler.schedule_retry()`; `task_runs.attempt`/`parent_run_id` track retry attempts.
 
 ## API entrypoints (backend/app/api/endpoints/)
 
