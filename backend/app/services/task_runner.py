@@ -39,7 +39,8 @@ def check_prerequisite(task: Task, db: Session) -> str | None:
     return None
 
 
-def run_task(task: Task, db: Session, max_rows: int = 20) -> dict:
+def run_task(task: Task, db: Session, attempt: int = 1,
+             parent_run_id: int | None = None, max_rows: int = 20) -> dict:
     err = check_prerequisite(task, db)
     if err:
         run_record = TaskRun(task_id=task.id, status="failed", error_message=err)
@@ -76,11 +77,14 @@ def run_task(task: Task, db: Session, max_rows: int = 20) -> dict:
         _active_task_ids.add(task.id)
 
     try:
-        run_record = TaskRun(task_id=task.id, status="running")
+        run_record = TaskRun(task_id=task.id, status="running",
+                             attempt=attempt, parent_run_id=parent_run_id)
         db.add(run_record)
         db.commit()
         db.refresh(run_record)
 
+        was_cancelled = False
+        non_retryable = False
         try:
             if task.type == "sql":
                 if not task.connection_id:
@@ -88,7 +92,7 @@ def run_task(task: Task, db: Session, max_rows: int = 20) -> dict:
                 conn = db.get(Connection, task.connection_id)
                 if not conn:
                     raise ValueError(f"连接不存在 (id={task.connection_id})")
-                df = execute_sql(conn, task.content, timeout=300, run_id=run_record.id)
+                df = execute_sql(conn, task.content, timeout=task.timeout_seconds or 300, run_id=run_record.id)
                 result = preview_data(df, max_rows=max_rows)
 
                 run_record.status = "success"
@@ -100,21 +104,39 @@ def run_task(task: Task, db: Session, max_rows: int = 20) -> dict:
 
             else:
                 ensure_dependencies(task.content)
-                result = execute_python(task.content, timeout=60, run_id=run_record.id)
+                result = execute_python(task.content, timeout=task.timeout_seconds or 60, run_id=run_record.id)
                 run_record.status = "success" if result["success"] else "failed"
                 if not result["success"]:
                     if run_tracker.pop_cancelled(run_record.id):
+                        was_cancelled = True
                         run_record.error_message = "用户手动取消"
                     else:
                         run_record.error_message = result["stderr"] or "Python 执行失败"
                 run_record.result_preview = json.dumps(result, ensure_ascii=False, default=str)
 
         except Exception as e:
+            was_cancelled = run_tracker.pop_cancelled(run_record.id)
+            # ValueError 为参数/连接配置错误，属非瞬态错误，不重试
+            non_retryable = isinstance(e, ValueError)
             run_record.status = "failed"
-            run_record.error_message = (
-                "用户手动取消" if run_tracker.pop_cancelled(run_record.id) else str(e)
-            )
+            run_record.error_message = "用户手动取消" if was_cancelled else str(e)
             logger.exception(f"task {task.id} execution error: {e}")
+
+        # 失败自动重试：非取消、非 ValueError（非瞬态）、未超上限时，调度一次性重试 job
+        if (
+            run_record.status == "failed"
+            and not was_cancelled
+            and not non_retryable
+            and attempt <= task.retry_limit
+        ):
+            next_attempt = attempt + 1
+            run_record.error_message = (
+                f"{run_record.error_message}（将在 {task.retry_delay} 秒后自动重试，第 {next_attempt} 次尝试）"
+            )
+            # 惰性导入避免循环依赖（scheduler 顶部已导入本模块）
+            from .scheduler import schedule_retry
+            schedule_retry(task.id, next_attempt, task.retry_delay,
+                           parent_run_id or run_record.id)
 
         run_record.finished_at = datetime.now(timezone.utc)
         db.commit()
