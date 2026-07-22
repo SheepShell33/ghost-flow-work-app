@@ -12,6 +12,9 @@ export interface TaskItem {
   prerequisite_task_id: number | null
   tags: string | null
   enabled: boolean
+  retry_limit: number
+  retry_delay: number
+  timeout_seconds: number | null
   created_at: string
   updated_at: string
 }
@@ -26,6 +29,9 @@ export interface TaskFormData {
   prerequisite_task_id?: number | null
   tags?: string | null
   enabled?: boolean
+  retry_limit?: number
+  retry_delay?: number
+  timeout_seconds?: number | null
 }
 
 export interface RunResult {

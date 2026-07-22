@@ -108,6 +108,8 @@ export default function History() {
         )
       },
     },
+    { title: '尝试', dataIndex: 'attempt', key: 'attempt', width: 70, align: 'center' as const,
+      render: (v: number) => <span className="ghost-mono" style={{ fontSize: 13 }}>{v > 1 ? `第 ${v} 次` : '1'}</span> },
     { title: '行数', dataIndex: 'row_count', key: 'row_count', width: 70, align: 'right' as const, render: (v: number | null) => v ?? '-' },
     {
       title: '开始时间', dataIndex: 'started_at', key: 'started_at', width: 140,
@@ -175,6 +177,7 @@ export default function History() {
                       {record.status === 'success' ? '成功' : record.status === 'failed' ? '失败' : '运行中'}
                     </Tag>
                   </Descriptions.Item>
+                  <Descriptions.Item label="尝试次数">{record.attempt ?? 1}</Descriptions.Item>
                   <Descriptions.Item label="影响行数">{record.row_count ?? '-'}</Descriptions.Item>
                   <Descriptions.Item label="开始时间">
                     {record.started_at ? new Date(record.started_at).toLocaleString('zh-CN') : '-'}

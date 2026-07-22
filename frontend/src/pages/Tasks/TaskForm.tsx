@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import {
-  Form, Input, Select, Button, message, Switch, Collapse, Space, Upload, Modal,
+  Form, Input, InputNumber, Select, Button, message, Switch, Collapse, Space, Upload, Modal,
   Typography, Spin, Tag,
 } from 'antd'
 import { InboxOutlined, PlayCircleOutlined } from '@ant-design/icons'
@@ -126,7 +126,7 @@ export default function TaskForm({ initial, onSuccess }: Props) {
   return (
     <>
       <Form form={form} layout="vertical" onFinish={handleSubmit}
-        initialValues={{ type: 'sql', enabled: false, cron_tz: 'Asia/Shanghai' }}>
+        initialValues={{ type: 'sql', enabled: false, cron_tz: 'Asia/Shanghai', retry_limit: 0, retry_delay: 60 }}>
         <Form.Item label="上传文件（可选）">
           <Dragger
             accept=".sql,.py"
@@ -204,6 +204,24 @@ export default function TaskForm({ initial, onSuccess }: Props) {
               </Form.Item>
               <Form.Item name="enabled" label="启用调度" valuePropName="checked">
                 <Switch />
+              </Form.Item>
+            </Space>
+          ),
+        }]} />
+
+        <Collapse ghost items={[{
+          key: 'retry',
+          label: '失败重试与超时',
+          children: (
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <Form.Item name="retry_limit" label="失败重试次数" tooltip="0 表示不重试；重试对前置任务失败、配置错误和手动取消不生效">
+                <InputNumber min={0} max={10} style={{ width: '100%' }} />
+              </Form.Item>
+              <Form.Item name="retry_delay" label="重试间隔（秒）">
+                <InputNumber min={0} max={86400} style={{ width: '100%' }} />
+              </Form.Item>
+              <Form.Item name="timeout_seconds" label="执行超时（秒）" tooltip="留空使用默认值：SQL 300 秒，Python 60 秒">
+                <InputNumber min={1} max={86400} style={{ width: '100%' }} placeholder="默认" />
               </Form.Item>
             </Space>
           ),

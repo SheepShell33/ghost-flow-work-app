@@ -7,6 +7,8 @@ export interface TaskRunItem {
   error_message: string | null
   result_preview: string | null
   row_count: number | null
+  attempt: number
+  parent_run_id: number | null
   started_at: string
   finished_at: string | null
 }
