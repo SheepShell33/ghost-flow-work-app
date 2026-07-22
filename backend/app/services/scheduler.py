@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -16,7 +16,7 @@ from loguru import logger
 _scheduler: BackgroundScheduler | None = None
 
 
-def _run_task_job(task_id: int):
+def _run_task_job(task_id: int, attempt: int = 1, parent_run_id: int | None = None):
     db = SessionLocal()
     try:
         task = db.get(Task, task_id)
@@ -25,14 +25,15 @@ def _run_task_job(task_id: int):
 
         err = check_prerequisite(task, db)
         if err:
-            run_record = TaskRun(task_id=task.id, status="failed", error_message=err)
+            run_record = TaskRun(task_id=task.id, status="failed", error_message=err,
+                                 attempt=attempt, parent_run_id=parent_run_id)
             run_record.finished_at = datetime.now(timezone.utc)
             db.add(run_record)
             db.commit()
             logger.warning(f"task {task.id} skipped: {err}")
             return
 
-        result = run_task(task, db)
+        result = run_task(task, db, attempt=attempt, parent_run_id=parent_run_id)
         logger.info(f"task {task.id} completed with status {result['status']}")
     except Exception as e:
         logger.exception(f"scheduler task {task_id} error: {e}")
@@ -118,3 +119,21 @@ def get_scheduler_status() -> dict:
             for j in jobs
         ],
     }
+
+
+def schedule_retry(task_id: int, attempt: int, delay_seconds: int, parent_run_id: int | None = None):
+    """调度一次性重试 job（date 触发器，持久化到 SQLAlchemyJobStore，重启后仍可触发）"""
+    if not _scheduler:
+        logger.warning(f"scheduler 未运行，任务 {task_id} 第 {attempt} 次重试被丢弃")
+        return
+    run_date = datetime.now(timezone.utc) + timedelta(seconds=delay_seconds)
+    _scheduler.add_job(
+        _run_task_job,
+        trigger="date",
+        run_date=run_date,
+        id=f"retry_task_{task_id}_{attempt}",
+        args=[task_id, attempt, parent_run_id],
+        replace_existing=True,
+        misfire_grace_time=3600,
+    )
+    logger.info(f"scheduled retry for task {task_id}, attempt {attempt} at {run_date}")
