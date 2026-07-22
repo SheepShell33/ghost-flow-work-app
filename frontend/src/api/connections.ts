@@ -15,6 +15,11 @@ export interface ConnectionFormData {
   config: string
 }
 
+export interface ConnectionTestResult {
+  success: boolean
+  message: string
+}
+
 export const listConnections = () =>
   client.get<ConnectionItem[]>('/connections').then((r) => r.data)
 
@@ -29,3 +34,7 @@ export const updateConnection = (id: number, data: Partial<ConnectionFormData>) 
 
 export const deleteConnection = (id: number) =>
   client.delete(`/connections/${id}`).then((r) => r.data)
+
+// 测试连接（不落库）；SSO 需等待用户在浏览器中登录，超时放宽到 120 秒
+export const testConnection = (data: { type: string; config: string }) =>
+  client.post<ConnectionTestResult>('/connections/test', data, { timeout: 120000 }).then((r) => r.data)
