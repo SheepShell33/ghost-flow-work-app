@@ -17,6 +17,8 @@ class TaskRun(Base):
     row_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     started_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    attempt: Mapped[int] = mapped_column(Integer, default=1, server_default="1", comment="第几次执行（含首次）")
+    parent_run_id: Mapped[int | None] = mapped_column(Integer, nullable=True, comment="指向首次运行的 TaskRun id，用于重试归组")
 
     task = relationship("Task", back_populates="runs")
 

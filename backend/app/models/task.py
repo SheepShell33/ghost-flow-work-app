@@ -19,6 +19,9 @@ class Task(Base):
     prerequisite_task_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("tasks.id"), nullable=True, comment="前置任务 ID，运行前需成功执行")
     tags: Mapped[str | None] = mapped_column(String(1024), nullable=True, comment="逗号分隔的标签")
     enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    retry_limit: Mapped[int] = mapped_column(Integer, default=0, server_default="0", comment="失败重试次数（不含首次执行）")
+    retry_delay: Mapped[int] = mapped_column(Integer, default=60, server_default="60", comment="重试间隔秒数")
+    timeout_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True, comment="执行超时秒数，None 使用类型默认值（SQL 300 / Python 60）")
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
