@@ -79,11 +79,13 @@ def test_task(task_id: int, db: Session = Depends(get_db)):
             conn = db.get(Connection, task.connection_id)
             if not conn:
                 raise HTTPException(status_code=404, detail="连接不存在")
-            df = execute_sql(conn, task.content)
+            # 超时使用任务配置，未配置时默认 300 秒
+            df = execute_sql(conn, task.content, timeout=task.timeout_seconds or 300)
             return preview_data(df, max_rows=20)
         else:
             ensure_dependencies(task.content)
-            result = execute_python(task.content)
+            # 超时使用任务配置，未配置时默认 60 秒
+            result = execute_python(task.content, timeout=task.timeout_seconds or 60)
             return result
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
