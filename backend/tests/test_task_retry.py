@@ -132,3 +132,79 @@ def test_attempt_and_parent_recorded(db, monkeypatch):
     run = db.query(TaskRun).order_by(TaskRun.id.desc()).first()
     assert run.attempt == 2
     assert run.parent_run_id == 5
+
+
+def test_retry_scheduled_on_python_failure(db, monkeypatch):
+    """Python 脚本 success=False（非取消）也会调度重试"""
+    task = _make_task(db, type="python", content="print(1)", retry_limit=1)
+    monkeypatch.setattr("app.services.task_runner.ensure_dependencies", lambda *a, **k: None)
+    monkeypatch.setattr(
+        "app.services.task_runner.execute_python",
+        lambda *a, **k: {"success": False, "stdout": "", "stderr": "err", "exit_code": 1},
+    )
+    calls = []
+    monkeypatch.setattr(
+        "app.services.scheduler.schedule_retry",
+        lambda *args, **kwargs: calls.append(args),
+    )
+    result = run_task(task, db)
+    assert result["status"] == "failed"
+    assert len(calls) == 1
+    assert "自动重试" in result["error_message"]
+
+
+def test_no_retry_on_manual_cancel(db, monkeypatch):
+    """手动取消的 Python 任务不调度重试"""
+    task = _make_task(db, type="python", content="print(1)", retry_limit=1)
+    monkeypatch.setattr("app.services.task_runner.ensure_dependencies", lambda *a, **k: None)
+    monkeypatch.setattr(
+        "app.services.task_runner.execute_python",
+        lambda *a, **k: {"success": False, "stdout": "", "stderr": "err", "exit_code": 1},
+    )
+    monkeypatch.setattr("app.services.task_runner.run_tracker.pop_cancelled", lambda run_id: True)
+    calls = []
+    monkeypatch.setattr(
+        "app.services.scheduler.schedule_retry",
+        lambda *args, **kwargs: calls.append(args),
+    )
+    result = run_task(task, db)
+    assert result["status"] == "failed"
+    assert calls == []
+    assert result["error_message"] == "用户手动取消"
+
+
+def test_no_retry_when_attempt_exceeds_limit(db, monkeypatch):
+    """链式重试边界：attempt 超过 retry_limit 后不再调度"""
+    from app.models.connection import Connection
+    conn_row = Connection(name="c", type="sqlite", config='{"file_path": "x.db"}')
+    db.add(conn_row)
+    db.commit()
+    task = _make_task(db, connection_id=conn_row.id, retry_limit=1, retry_delay=30)
+    monkeypatch.setattr("app.services.task_runner.execute_sql", _boom)
+    calls = []
+    monkeypatch.setattr(
+        "app.services.scheduler.schedule_retry",
+        lambda *args, **kwargs: calls.append(args),
+    )
+    result = run_task(task, db, attempt=2)  # 2 > retry_limit=1，达到上限
+    assert result["status"] == "failed"
+    assert calls == []
+
+
+def test_schedule_retry_failure_still_persists_run_record(db, monkeypatch):
+    """schedule_retry 抛异常不影响运行记录落库（finished_at 写入并 commit）"""
+    from app.models.connection import Connection
+    conn_row = Connection(name="c", type="sqlite", config='{"file_path": "x.db"}')
+    db.add(conn_row)
+    db.commit()
+    task = _make_task(db, connection_id=conn_row.id, retry_limit=1, retry_delay=30)
+    monkeypatch.setattr("app.services.task_runner.execute_sql", _boom)
+
+    def _jobstore_down(*args, **kwargs):
+        raise RuntimeError("jobstore down")
+
+    monkeypatch.setattr("app.services.scheduler.schedule_retry", _jobstore_down)
+    result = run_task(task, db)  # 不应抛出异常
+    assert result["status"] == "failed"
+    run = db.get(TaskRun, result["run_id"])
+    assert run.finished_at is not None

@@ -135,8 +135,13 @@ def run_task(task: Task, db: Session, attempt: int = 1,
             )
             # 惰性导入避免循环依赖（scheduler 顶部已导入本模块）
             from .scheduler import schedule_retry
-            schedule_retry(task.id, next_attempt, task.retry_delay,
-                           parent_run_id or run_record.id)
+            try:
+                schedule_retry(task.id, next_attempt, task.retry_delay,
+                               parent_run_id or run_record.id)
+            except Exception:
+                # 调度失败（如 jobstore 故障）不应阻断运行记录落库，
+                # 仅记录异常；重试说明保留，因为 job 可能已部分注册
+                logger.exception(f"task {task.id} schedule retry failed")
 
         run_record.finished_at = datetime.now(timezone.utc)
         db.commit()
