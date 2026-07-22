@@ -16,11 +16,14 @@ from loguru import logger
 _scheduler: BackgroundScheduler | None = None
 
 
-def _run_task_job(task_id: int, attempt: int = 1, parent_run_id: int | None = None):
+def _run_task_job(task_id: int, attempt: int = 1, parent_run_id: int | None = None,
+                  require_enabled: bool = True):
     db = SessionLocal()
     try:
         task = db.get(Task, task_id)
-        if not task or not task.enabled:
+        # require_enabled=False 用于重试 job：手动运行的任务可能未启用调度，
+        # 不能因为 enabled 闸门把重试静默丢弃
+        if not task or (require_enabled and not task.enabled):
             return
 
         err = check_prerequisite(task, db)
@@ -123,6 +126,9 @@ def get_scheduler_status() -> dict:
 
 def schedule_retry(task_id: int, attempt: int, delay_seconds: int, parent_run_id: int | None = None):
     """调度一次性重试 job（date 触发器，持久化到 SQLAlchemyJobStore，重启后仍可触发）"""
+    # delay 下限 1 秒：delay=0 时 job 会立即触发，而当前运行记录尚未 commit、
+    # 内存锁未释放，重试会撞上运行中检查导致重试链静默终止
+    delay_seconds = max(1, delay_seconds)
     if not _scheduler:
         logger.warning(f"scheduler 未运行，任务 {task_id} 第 {attempt} 次重试被丢弃")
         return
@@ -132,7 +138,9 @@ def schedule_retry(task_id: int, attempt: int, delay_seconds: int, parent_run_id
         trigger="date",
         run_date=run_date,
         id=f"retry_task_{task_id}_{attempt}",
-        args=[task_id, attempt, parent_run_id],
+        # 第 4 个位置参数 require_enabled=False：手动运行的任务可能未启用调度，
+        # 重试不应被 _run_task_job 的 enabled 闸门拦截
+        args=[task_id, attempt, parent_run_id, False],
         replace_existing=True,
         misfire_grace_time=3600,
     )
