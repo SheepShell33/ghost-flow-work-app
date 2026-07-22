@@ -10,6 +10,7 @@
 ```bash
 # backend
 cd backend && uv run uvicorn app.main:app --reload --port 8000
+uv run pytest -v                  # 单元测试（backend/tests/）
 
 # frontend
 cd frontend && pnpm dev          # dev server on :5173
@@ -39,7 +40,8 @@ pnpm build                        # tsc -b && vite build
 - File upload: `POST /api/tasks/upload` accepts `.sql`/`.py` files, returns extracted name/type/content.
 - Test run: `POST /api/execute/tasks/{id}/test` runs and returns first 20 rows (SQL) or stdout/stderr/exit_code (Python) without saving a TaskRun.
 - Prerequisite tasks: `tasks.prerequisite_task_id` column; executor checks prerequisite success before running scheduled/manual tasks.
-- Auto deps: `services/deps_installer.py` parses Python `import`/`from` statements via `ast`, installs missing packages via pip.
+- Auto deps: `services/deps_installer.py` parses Python `import`/`from` statements via `ast`, maps import names to pip package names (`IMPORT_TO_PACKAGE`: sklearn→scikit-learn, yaml→pyyaml, PIL→Pillow, cv2→opencv-python, bs4→beautifulsoup4), installs missing packages via pip. **安装失败抛 `RuntimeError`（含 pip stderr 摘要）**：`/api/execute/python` 转为 400，`/api/execute/tasks/{id}/test` 转为 400，`task_runner` 写入 `TaskRun.error_message`。
+- Connection test: `POST /api/connections/test`（body `{type, config(JSON 字符串)}`）不落库，按 type 取 connector 执行 `SELECT 1`，返回 `{success, message}`；定义在 `/{connection_id}` 之前避免被路径参数捕获。
 
 ## API entrypoints (backend/app/api/endpoints/)
 
@@ -55,7 +57,7 @@ pnpm build                        # tsc -b && vite build
 
 - All code comments, docs, and communication in **Chinese**.
 - Database schema is managed by Alembic; new environments run `uv run alembic upgrade head`.
-- Redshift Okta SSO uses `redshift-connector` with `OktaCredentialsProvider` (config: `idp_tenant`, `client_id`, `plugin_name`).
+- Redshift auth (`services/connector/redshift_connector_impl.py`): `auth_type` ∈ `browser_azure`（Azure AD / Entra 浏览器 SSO，内置 `BrowserAzureCredentialsProvider`，必填 `host/database/cluster_identifier/client_id/idp_tenant`，`region` 缺省时由 connector 从 host 推导）、`iam_keys`、`password`；兼容映射 `iam`→`iam_keys`、无 `auth_type` 且含 `idp_tenant`→`browser_azure`、无 `auth_type` 且含 `user+password`→`password`；旧 `okta`（Java 插件）分支原样保留。各分支连接前校验必填，缺失抛中文 `ValueError`。
 - Python executor runs in `subprocess` sandbox; SQL executor uses `ThreadPoolExecutor` for timeout.
 - Frontend uses Ant Design 6 (`darkAlgorithm` via `ConfigProvider` in `main.tsx`), all pages are under `src/pages/`, layout in `src/components/AppLayout.tsx`.
 - Frontend styling: `src/main.tsx` MUST keep `import './index.css'`（曾因缺失导致自定义样式从未加载）. Global styles use `.ghost-*` classes and `--ghost-*` CSS variables defined in `src/index.css`; component tokens are aligned in `main.tsx` `ConfigProvider`. Do NOT add `!important` overrides on antd preset-color components (e.g. `.ant-tag`) — use `ConfigProvider` component tokens instead.

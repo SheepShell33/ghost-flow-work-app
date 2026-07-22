@@ -46,7 +46,11 @@ def execute_adhoc_sql(req: SQLExecuteRequest, db: Session = Depends(get_db)):
 
 @router.post("/python")
 def execute_adhoc_python(req: PythonExecuteRequest):
-    ensure_dependencies(req.code)
+    try:
+        ensure_dependencies(req.code)
+    except Exception as e:
+        # 依赖安装失败（RuntimeError 等）需把可读的错误信息返回给前端
+        raise HTTPException(status_code=400, detail=str(e))
     return execute_python(req.code, timeout=req.timeout)
 
 

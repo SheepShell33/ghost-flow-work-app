@@ -19,6 +19,18 @@ class ConnectionUpdate(BaseModel):
     config: str | None = None
 
 
+class ConnectionTestRequest(BaseModel):
+    """测试连接请求：不落库，config 为 JSON 字符串"""
+
+    type: str = Field(..., description="sqlite | redshift")
+    config: str = Field(..., description="JSON 格式的连接配置")
+
+
+class ConnectionTestResponse(BaseModel):
+    success: bool
+    message: str
+
+
 class ConnectionResponse(ConnectionBase):
     id: int
     created_at: datetime
