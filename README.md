@@ -75,33 +75,66 @@ ghost-flow-work-app/
 
 ---
 
-## 开发环境启动
+## 如何运行
 
-环境要求：Python 3.12+、Node.js 20+、uv、pnpm。
+本应用有三种运行方式：开发模式（前后端分离，热重载）、生产模式（后端单服务托管前端）、桌面版（Electron 安装包）。
+
+环境要求：Python 3.12+、Node.js 20+、[uv](https://docs.astral.sh/uv/)、pnpm（`npm i -g pnpm`）。
+
+### 方式一：开发模式（日常开发）
 
 ```bash
-# 后端
+# 终端 1：后端（端口 8000，代码改动自动重载）
 cd backend
 uv sync
 uv run alembic upgrade head                      # 新环境首次执行，初始化数据库
 uv run uvicorn app.main:app --reload --port 8000
 
-# 前端（新开终端）
+# 终端 2：前端（端口 5173，热更新）
 cd frontend
 pnpm install
 pnpm dev
 ```
 
-前端访问 http://localhost:5173 ，API 通过 Vite proxy 自动转发到后端 8000 端口。
+浏览器访问 http://localhost:5173 ，前端通过 Vite proxy 把 `/api/*` 转发到后端 8000 端口。
 
-运行测试：
+### 方式二：生产模式（后端单服务）
+
+把前端构建产物交给后端托管，只需启动一个进程：
+
+```bash
+# 1. 构建前端并复制到后端静态目录
+cd frontend
+pnpm install && pnpm build
+mkdir -p ../backend/static/dist && cp -r dist/* ../backend/static/dist/
+
+# 2. 启动后端（检测到 backend/static/dist 存在即自动托管前端页面）
+cd ../backend
+uv sync
+uv run alembic upgrade head    # 首次运行初始化数据库
+uv run uvicorn app.main:app --port 8000
+```
+
+浏览器访问 http://localhost:8000 即可使用完整应用（API 与页面同源，无跨域问题）。
+
+### 方式三：桌面版（Electron 安装包）
+
+使用打包好的安装包（打包方法见下节）：
+
+1. 运行 `Ghost Flow Work App Setup <version>.exe`，按向导选择安装目录完成安装。
+2. 从桌面快捷方式或开始菜单启动「Ghost Flow Work App」。
+3. 启动后 Electron 会自动拉起内嵌的后端服务（`127.0.0.1:17892`）并打开主窗口；关闭窗口后应用最小化到系统托盘继续运行（定时任务不受影响），右键托盘图标可打开窗口或退出。
+4. 数据（SQLite 数据库、日志）保存在安装目录下的 `data/` 文件夹（由环境变量 `GHOST_FLOW_DATA_DIR` 指定），卸载重装不会丢失，手动备份该目录即可迁移全部数据。
+5. 应用通过 electron-updater 检查 GitHub Releases 自动更新。
+
+### 运行测试
 
 ```bash
 cd backend
 uv run pytest -v
 ```
 
-数据库迁移常用命令：
+### 数据库迁移常用命令
 
 ```bash
 cd backend
@@ -255,6 +288,16 @@ uv run alembic stamp head     # 已有库手动标记为最新版本
 
 桌面版架构：Electron 主进程（`electron/main.ts`）启动内嵌的 `ghost-flow-backend.exe`（监听 `127.0.0.1:17892`），窗口加载后端托管的前端静态页面；支持系统托盘常驻与 GitHub Releases 自动更新。数据目录为安装目录下的 `data/`（环境变量 `GHOST_FLOW_DATA_DIR`）。
 
+### 打包前提
+
+- Windows + PowerShell（脚本 `build-desktop.ps1` 为 PowerShell 语法，兼容 PowerShell 5.1）。
+- 已安装 uv、pnpm、Node.js 20+、Python 3.12+（同开发环境）。
+- 首次执行 electron-builder 会自动下载 Electron 与 NSIS 相关依赖，需保持网络畅通，耗时较长属正常。
+
+### 修改版本号
+
+打包前修改 `electron/package.json` 中的 `version` 字段（如 `"0.2.0"`），安装包文件名与自动更新均以此版本号为准。
+
 ### 一键打包（推荐）
 
 在 Windows PowerShell 中执行：
@@ -272,7 +315,13 @@ uv run alembic stamp head     # 已有库手动标记为最新版本
 5. PyInstaller 打包后端：`uv run --with pyinstaller pyinstaller ... desktop_entry.py`，产物为 `electron/resources/ghost-flow-backend.exe`（单文件，内含前端静态资源与 Alembic 迁移脚本）。
 6. Electron 打包：`cd electron && pnpm install && pnpm dist`（先 `tsc` 编译主进程，再 electron-builder 打 NSIS 安装包）。
 
-最终安装包位于 `electron/dist-electron/Ghost Flow Work App Setup <version>.exe`。
+### 打包产物
+
+`electron/dist-electron/` 目录下：
+
+- `Ghost Flow Work App Setup <version>.exe` — NSIS 安装包（分发给最终用户的文件）。
+- `win-unpacked/` — 免安装的绿色版目录，可直接运行其中的 `Ghost Flow Work App.exe` 做打包后验证。
+- `latest.yml` + `.blockmap` — 自动更新元数据，发布 GitHub Release 时随安装包一起上传。
 
 ### 手动分步打包
 
@@ -301,6 +350,17 @@ pnpm install
 pnpm build   # tsc 编译 main.ts / preload.ts / updater.ts → dist/
 pnpm dist    # electron-builder，产物在 electron/dist-electron/
 ```
+
+### 打包后验证
+
+1. 先运行 `electron/dist-electron/win-unpacked/Ghost Flow Work App.exe`，确认主窗口能打开、后端服务（17892 端口）正常拉起、界面数据可读写。
+2. 再执行 NSIS 安装包走一遍安装流程，确认桌面快捷方式、托盘图标、开机后的数据目录（安装目录 `data/`）均正常。
+
+### 常见问题
+
+- **electron-builder 下载卡住**：首次打包需下载 Electron/NSIS 依赖，网络慢时可重试；已下载的依赖会缓存，后续打包很快。
+- **PyInstaller 产物被杀毒软件拦截**：单文件 exe 可能误报，将 `electron/resources/` 加入杀软白名单后重打。
+- **win-unpacked 能跑但安装后打不开**：多为数据目录权限问题，检查安装目录是否可写（`GHOST_FLOW_DATA_DIR` 指向安装目录 `data/`）。
 
 ---
 
