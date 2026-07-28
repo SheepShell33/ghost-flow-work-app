@@ -62,4 +62,5 @@ pnpm build                        # tsc -b && vite build
 - Python executor runs in `subprocess` sandbox; SQL executor uses `ThreadPoolExecutor` for timeout.
 - Frontend uses Ant Design 6 (`darkAlgorithm` via `ConfigProvider` in `main.tsx`), all pages are under `src/pages/`, layout in `src/components/AppLayout.tsx`.
 - Frontend styling: `src/main.tsx` MUST keep `import './index.css'`（曾因缺失导致自定义样式从未加载）. Global styles use `.ghost-*` classes and `--ghost-*` CSS variables defined in `src/index.css`; component tokens are aligned in `main.tsx` `ConfigProvider`. Do NOT add `!important` overrides on antd preset-color components (e.g. `.ant-tag`) — use `ConfigProvider` component tokens instead.
+- Electron 打包：`electron/pnpm-workspace.yaml` 必须保持 `nodeLinker: hoisted`（pnpm 默认 isolated 符号链接布局会让 electron-builder 漏收间接依赖，运行时报 `Cannot find module 'fs-extra'` 等）；与 electron-builder 自身版本冲突的运行时依赖（`builder-util-runtime`、`semver`）需在 `electron/package.json` 中声明为直接依赖，使 hoisted 根目录版本满足 electron-updater。改动 electron 依赖后应确认 `electron/node_modules/` 无 `.pnpm` 目录再打包。
 - After any significant feature update, bugfix, or other change, run `git commit` locally (do not push automatically).

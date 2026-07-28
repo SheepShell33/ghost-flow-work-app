@@ -392,6 +392,7 @@ pnpm dist    # electron-builder，产物在 electron/dist-electron/
 - **electron-builder 下载卡住**：首次打包需下载 Electron/NSIS 依赖，网络慢时可重试；已下载的依赖会缓存，后续打包很快。
 - **PyInstaller 产物被杀毒软件拦截**：单文件 exe 可能误报，将 `electron/resources/` 加入杀软白名单后重打。
 - **win-unpacked 能跑但安装后打不开**：多为数据目录权限问题，检查安装目录是否可写（`GHOST_FLOW_DATA_DIR` 指向安装目录 `data/`）。
+- **运行打包产物报 `Cannot find module 'xxx'`（如 fs-extra）**：pnpm 默认的 isolated（符号链接）布局会让 electron-builder 漏收间接依赖。本项目已在 `electron/pnpm-workspace.yaml` 配置 `nodeLinker: hoisted`（扁平布局）并将 electron-updater 冲突版本的两个依赖（`builder-util-runtime`、`semver`）提升为直接依赖；若改动过依赖，重装后务必确认 `electron/node_modules/` 下不再存在 `.pnpm` 目录再打包。
 
 ---
 
