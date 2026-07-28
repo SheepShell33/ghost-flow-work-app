@@ -74,10 +74,23 @@ pnpm dist
 if ($LASTEXITCODE -ne 0) { throw "pnpm dist failed with exit code $LASTEXITCODE" }
 
 $electronPackage = Get-Content "$electron\package.json" -Raw | ConvertFrom-Json
-$installerName = "$($electronPackage.productName) Setup $($electronPackage.version).exe"
-$installer = Join-Path (Join-Path $electron "dist-electron") $installerName
-if (Test-Path $installer) {
-    Write-Host "Build complete: $installer" -ForegroundColor Green
-} else {
-    Write-Error "Installer not found at $installer"
+# productName 位于 build 字段内；version 在顶层
+$productName = $electronPackage.build.productName
+$version = $electronPackage.version
+$distDir = Join-Path $electron "dist-electron"
+$artifacts = @(
+    "$productName Setup $version.exe",   # NSIS 安装包
+    "$productName $version.exe"          # 便携版单文件
+)
+$missing = @()
+foreach ($name in $artifacts) {
+    $artifact = Join-Path $distDir $name
+    if (Test-Path $artifact) {
+        Write-Host "Build complete: $artifact" -ForegroundColor Green
+    } else {
+        $missing += $artifact
+    }
+}
+if ($missing.Count -gt 0) {
+    Write-Error "Artifact not found: $($missing -join ', ')"
 }
