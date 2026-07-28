@@ -1,5 +1,6 @@
+import { useRef, useState } from 'react'
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
-import { Layout, Menu, Result, Button } from 'antd'
+import { Layout, Menu, Result, Button, Modal } from 'antd'
 import {
   DashboardOutlined, LinkOutlined, FileTextOutlined,
   ClockCircleOutlined, HistoryOutlined,
@@ -26,12 +27,29 @@ export default function AppLayout() {
   const navigate = useNavigate()
   const location = useLocation()
 
+  // 彩蛋：1.2 秒内连点 logo 5 次，弹出开发者昵称
+  const [eggClicks, setEggClicks] = useState(0)
+  const [eggOpen, setEggOpen] = useState(false)
+  const eggTimer = useRef<number | undefined>(undefined)
+
+  const handleLogoClick = () => {
+    window.clearTimeout(eggTimer.current)
+    const next = eggClicks + 1
+    if (next >= 5) {
+      setEggClicks(0)
+      setEggOpen(true)
+    } else {
+      setEggClicks(next)
+      eggTimer.current = window.setTimeout(() => setEggClicks(0), 1200)
+    }
+  }
+
   const currentLabel = menuItems.find((i) => i.key === location.pathname)?.label || 'Ghost Flow Work App'
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Sider theme="dark" width={220} breakpoint="lg" collapsedWidth={64} className="ghost-sider">
-        <div className="ghost-logo">
+        <div className="ghost-logo" onClick={handleLogoClick} style={{ cursor: 'pointer', userSelect: 'none' }}>
           <span className="ghost-logo-user">ghost@flow</span>
           <span className="ghost-logo-path">:~$</span>
           <span className="ghost-cursor">▍</span>
@@ -68,6 +86,21 @@ export default function AppLayout() {
           </div>
         </Content>
       </Layout>
+      {/* 彩蛋弹窗：仅开发者昵称 + emoji，不含任何个人信息 */}
+      <Modal
+        open={eggOpen}
+        footer={null}
+        closable={false}
+        centered
+        width={300}
+        onCancel={() => setEggOpen(false)}
+      >
+        <div style={{ textAlign: 'center', padding: '16px 0 8px' }}>
+          <div style={{ fontSize: 56, lineHeight: 1.2 }}>👻</div>
+          <div style={{ fontSize: 26, fontWeight: 600, marginTop: 12, letterSpacing: 1 }}>windshell</div>
+          <div style={{ fontSize: 20, marginTop: 12 }}>✨ 🚀 🌙 ⚡ 🛠️</div>
+        </div>
+      </Modal>
     </Layout>
   )
 }
