@@ -15,7 +15,10 @@ let tray: Tray | null = null
 let backendProcess: ChildProcessWithoutNullStreams | null = null
 
 function getInstallDir(): string {
-  return path.dirname(app.getPath('exe'))
+  // 便携版（portable target）运行时 exe 会被解压到临时目录，
+  // electron-builder 会设置 PORTABLE_EXECUTABLE_DIR 指向便携 exe 实际所在目录，
+  // 数据必须落在那里，否则随临时目录清理而丢失
+  return process.env.PORTABLE_EXECUTABLE_DIR || path.dirname(app.getPath('exe'))
 }
 
 function getBackendExePath(): string {

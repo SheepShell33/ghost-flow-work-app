@@ -317,11 +317,42 @@ uv run alembic stamp head     # 已有库手动标记为最新版本
 
 ### 打包产物
 
-`electron/dist-electron/` 目录下：
+`electron/dist-electron/` 目录下（`electron/package.json` 的 `build.win.target` 同时配置了 `nsis` 与 `portable`，一次打包两种产物都有）：
 
 - `Ghost Flow Work App Setup <version>.exe` — NSIS 安装包（分发给最终用户的文件）。
-- `win-unpacked/` — 免安装的绿色版目录，可直接运行其中的 `Ghost Flow Work App.exe` 做打包后验证。
+- `Ghost Flow Work App <version>.exe` — **单文件免安装便携版**，详见下节。
+- `win-unpacked/` — 免安装的绿色版目录（未压缩成单文件），可直接运行其中的 `Ghost Flow Work App.exe` 做打包后验证。
 - `latest.yml` + `.blockmap` — 自动更新元数据，发布 GitHub Release 时随安装包一起上传。
+
+### 单文件免安装版（portable）
+
+适合直接发给用户、无需管理员权限安装的场景：整个应用（Electron + 内嵌后端 + 前端页面）打包成**一个 exe**，双击即用。
+
+**如何打出便携版**
+
+无需额外配置——`build.win.target` 已包含 `portable`，执行一键打包脚本即可同时产出 NSIS 安装包与便携版：
+
+```powershell
+.\scripts\build-desktop.ps1
+```
+
+或者在已有 `electron/resources/ghost-flow-backend.exe` 的前提下，只重打 Electron 部分：
+
+```bash
+cd electron
+pnpm dist    # 同时产出 NSIS 安装包与便携版 exe
+```
+
+产物为 `electron/dist-electron/Ghost Flow Work App <version>.exe`（无 `Setup` 字样、体积约 200MB+ 的那个文件）。
+
+**便携版的使用与注意事项**
+
+- **分发方式**：把这个 exe 单独拷给用户即可（U 盘、网盘、IM 传文件都行），无需安装、不写注册表、不创建快捷方式。
+- **首次启动较慢**：运行时 exe 会先自解压到系统临时目录再启动，首次约 5~10 秒，属正常现象。
+- **数据位置**：数据目录（SQLite 库、日志）在 **便携 exe 同级的 `data/` 目录**（`main.ts` 通过 `PORTABLE_EXECUTABLE_DIR` 定位 exe 真实所在目录，而不是临时解压目录），拷走 exe + `data/` 即可整体迁移。
+- **exe 需放在可写目录**：不要放在 `C:\Program Files` 这类需要管理员权限的目录，否则 `data/` 无法创建。
+- **不支持自动更新**：portable 目标没有 `latest.yml`，升级时直接替换 exe 文件即可，`data/` 目录不受影响。
+- **与绿色版目录的区别**：`win-unpacked/` 是一个目录（启动更快，无需自解压）；便携版是单文件（分发更方便）。两者数据互通逻辑一致，都是"程序所在目录下的 `data/`"。
 
 ### 手动分步打包
 
