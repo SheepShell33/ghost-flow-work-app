@@ -1,6 +1,6 @@
 import { app, BrowserWindow, Tray, Menu, dialog, nativeImage, ipcMain } from 'electron'
 import { autoUpdater } from 'electron-updater'
-import { spawn, ChildProcessWithoutNullStreams } from 'child_process'
+import { spawn, execFileSync, ChildProcessWithoutNullStreams } from 'child_process'
 import path from 'path'
 import fs from 'fs'
 import axios from 'axios'
@@ -27,6 +27,43 @@ function getBackendExePath(): string {
 
 function getDataDir(): string {
   return path.join(getInstallDir(), 'data')
+}
+
+async function isBackendAlive(): Promise<boolean> {
+  try {
+    const res = await axios.get(`http://127.0.0.1:${BACKEND_PORT}/api/health`, { timeout: 1000 })
+    return res.status === 200
+  } catch {
+    return false
+  }
+}
+
+// PyInstaller 单文件 exe 是父子双进程（引导器 + 真正的 Python 进程），
+// 只 kill 父进程会留下子进程占用端口，必须按进程树终止
+function killProcessTree(pid: number) {
+  if (process.platform === 'win32') {
+    try {
+      execFileSync('taskkill', ['/pid', String(pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' })
+    } catch {
+      // 进程已退出时 taskkill 返回非零，忽略
+    }
+  } else {
+    try {
+      process.kill(pid)
+    } catch {
+      // 忽略
+    }
+  }
+}
+
+// 启动前清理上次异常退出残留的后端进程（否则端口被占，新后端绑定失败退出码 3）
+function killStaleBackends() {
+  if (process.platform !== 'win32') return
+  try {
+    execFileSync('taskkill', ['/IM', 'ghost-flow-backend.exe', '/T', '/F'], { windowsHide: true, stdio: 'ignore' })
+  } catch {
+    // 没有残留进程时 taskkill 返回非零，忽略
+  }
 }
 
 async function waitForBackend(): Promise<boolean> {
@@ -142,6 +179,21 @@ async function startBackend(): Promise<boolean> {
   const dataDir = getDataDir()
   fs.mkdirSync(dataDir, { recursive: true })
 
+  // 上次异常退出可能残留后端进程占用端口（不能复用：前端静态资源由后端托管，
+  // 残留旧版本会导致界面与服务端版本不一致），先按进程树清理并等待端口释放
+  if (await isBackendAlive()) {
+    killStaleBackends()
+    const start = Date.now()
+    while (await isBackendAlive()) {
+      if (Date.now() - start > 10000) {
+        dialog.showErrorBox('后端端口被占用', `端口 ${BACKEND_PORT} 上的残留后端进程无法终止，请手动结束后重试。`)
+        app.quit()
+        return false
+      }
+      await new Promise((resolve) => setTimeout(resolve, 300))
+    }
+  }
+
   return new Promise((resolve) => {
     let resolved = false
     const resolveOnce = (value: boolean) => {
@@ -196,8 +248,9 @@ async function startBackend(): Promise<boolean> {
 }
 
 function stopBackend() {
-  if (backendProcess && !backendProcess.killed) {
-    backendProcess.kill()
+  if (backendProcess && backendProcess.pid && !backendProcess.killed) {
+    killProcessTree(backendProcess.pid)
+    backendProcess = null
   }
 }
 
