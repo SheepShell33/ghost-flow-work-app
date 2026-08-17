@@ -299,3 +299,54 @@ def test_disabled_dependent_task_not_triggered(db, monkeypatch):
     result = run_task(task1, db)
     assert result["status"] == "success"
     assert triggered == []
+
+
+def test_chain_triggering(db, monkeypatch):
+    """多级前置任务链可以传导：test1 -> test2 -> test3"""
+    from app.models.connection import Connection
+    conn_row = Connection(name="c", type="sqlite", config='{"file_path": "x.db"}')
+    db.add(conn_row)
+    db.commit()
+
+    task1 = _make_task(db, connection_id=conn_row.id, name="test 1")
+    task2 = _make_task(
+        db,
+        connection_id=conn_row.id,
+        name="test 2",
+        prerequisite_task_id=task1.id,
+        enabled=True,
+    )
+    task3 = _make_task(
+        db,
+        connection_id=conn_row.id,
+        name="test 3",
+        prerequisite_task_id=task2.id,
+        enabled=True,
+    )
+
+    monkeypatch.setattr(
+        "app.services.task_runner.execute_sql",
+        lambda *a, **k: pd.DataFrame({"a": [1]}),
+    )
+
+    executed_order = []
+
+    def fake_trigger_now(task_id: int):
+        executed_order.append(task_id)
+        # 模拟 scheduler 执行被触发的任务
+        dep_task = db.get(Task, task_id)
+        if dep_task:
+            run_task(dep_task, db)
+
+    monkeypatch.setattr(
+        "app.services.scheduler.trigger_task_now", fake_trigger_now
+    )
+
+    result = run_task(task1, db)
+    assert result["status"] == "success"
+    assert executed_order == [task2.id, task3.id]
+
+    # 验证三个任务都有成功运行记录
+    for task_id in [task1.id, task2.id, task3.id]:
+        runs = db.query(TaskRun).filter(TaskRun.task_id == task_id).all()
+        assert any(r.status == "success" for r in runs)
