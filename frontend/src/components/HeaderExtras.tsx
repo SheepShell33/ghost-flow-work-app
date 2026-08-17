@@ -1,4 +1,7 @@
 import { useEffect, useState } from 'react'
+import { Button, Tooltip } from 'antd'
+import { BulbOutlined, MoonOutlined } from '@ant-design/icons'
+import { useTheme } from '../contexts/ThemeContext'
 import { getSchedulerStatus } from '../api/schedules'
 
 /** Header 右侧区域：调度器实时状态 + 单秒时钟 + 版本号 */
@@ -19,11 +22,22 @@ export default function HeaderExtras() {
       .catch(() => setRunning(null))
   }, [])
 
+  const { theme, toggleTheme } = useTheme()
+  const isDark = theme === 'dark'
+
   const pad = (n: number) => String(n).padStart(2, '0')
   const clock = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
 
   return (
     <span className="ghost-header-extra">
+      <Tooltip title={isDark ? '切换至亮色模式' : '切换至暗色模式'}>
+        <Button
+          type="text"
+          icon={isDark ? <BulbOutlined /> : <MoonOutlined />}
+          onClick={toggleTheme}
+          style={{ color: 'var(--ghost-text-secondary)' }}
+        />
+      </Tooltip>
       {running !== null && (
         <span className="ghost-header-status">
           <span className={`ghost-status-dot ${running ? 'ghost-status-dot--running' : 'ghost-status-dot--error'}`} />
