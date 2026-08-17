@@ -1,3 +1,11 @@
+/* ===== 共享变量 ===== */
+:root {
+  --ghost-font-mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+
+  --ghost-radius: 10px;
+  --ghost-radius-lg: 12px;
+}
+
 /* ===== Dark Mode（当前默认风格）===== */
 [data-theme='dark'] {
   --ghost-bg: #07090d;
@@ -6,6 +14,7 @@
   --ghost-hover: #171c28;
   --ghost-panel-deep: rgba(8, 11, 16, 0.85);
   --ghost-sider-bg: #080b10;
+  --ghost-modal-bg: rgba(12, 15, 22, 0.97);
 
   --ghost-primary: #00d4ff;
   --ghost-secondary: #7c3aed;
@@ -19,11 +28,6 @@
 
   --ghost-border: rgba(255, 255, 255, 0.07);
   --ghost-border-strong: rgba(255, 255, 255, 0.12);
-
-  --ghost-font-mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
-
-  --ghost-radius: 10px;
-  --ghost-radius-lg: 12px;
 }
 
 /* ===== Light Mode ===== */
@@ -34,6 +38,7 @@
   --ghost-hover: #e2e8f0;
   --ghost-panel-deep: rgba(255, 255, 255, 0.85);
   --ghost-sider-bg: #ffffff;
+  --ghost-modal-bg: var(--ghost-panel);
 
   --ghost-primary: #00a3cc;
   --ghost-secondary: #7c3aed;
@@ -47,11 +52,6 @@
 
   --ghost-border: rgba(0, 0, 0, 0.08);
   --ghost-border-strong: rgba(0, 0, 0, 0.12);
-
-  --ghost-font-mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
-
-  --ghost-radius: 10px;
-  --ghost-radius-lg: 12px;
 }
 
 body {
@@ -90,17 +90,17 @@ body {
 
 .ghost-status-dot--success {
   background: var(--ghost-success);
-  box-shadow: 0 0 8px rgba(74, 222, 128, 0.5);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--ghost-success) 50%, transparent);
 }
 
 .ghost-status-dot--error {
   background: var(--ghost-error);
-  box-shadow: 0 0 8px rgba(255, 107, 107, 0.5);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--ghost-error) 50%, transparent);
 }
 
 .ghost-status-dot--running {
   background: var(--ghost-primary);
-  box-shadow: 0 0 8px rgba(0, 212, 255, 0.5);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--ghost-primary) 50%, transparent);
 }
 
 .ghost-status-dot--idle {
@@ -116,9 +116,9 @@ body {
 }
 
 .ghost-sider .ant-menu-item-selected {
-  background: rgba(0, 212, 255, 0.12) !important;
+  background: color-mix(in srgb, var(--ghost-primary) 12%, transparent) !important;
   border-left: 3px solid var(--ghost-primary);
-  box-shadow: 0 0 12px rgba(0, 212, 255, 0.15);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--ghost-primary) 15%, transparent);
 }
 
 .ghost-sider .ant-menu-item {
@@ -132,6 +132,10 @@ body {
 .ghost-sider .ant-menu-item:hover {
   background: rgba(255, 255, 255, 0.05) !important;
   transform: translateX(4px);
+}
+
+[data-theme='light'] .ghost-sider .ant-menu-item:hover {
+  background: rgba(0, 0, 0, 0.04) !important;
 }
 
 /* 终端风格 Logo */
@@ -313,7 +317,7 @@ body {
 }
 
 .ghost-table-actions .ant-btn:hover {
-  background: rgba(0, 212, 255, 0.1) !important;
+  background: color-mix(in srgb, var(--ghost-primary) 10%, transparent) !important;
 }
 
 /* 筛选栏 */
@@ -413,10 +417,10 @@ body {
   /* 状态脉冲 */
   @keyframes ghostStatusPulse {
     0%, 100% {
-      box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.4);
+      box-shadow: 0 0 0 0 color-mix(in srgb, var(--ghost-success) 40%, transparent);
     }
     50% {
-      box-shadow: 0 0 0 6px rgba(74, 222, 128, 0);
+      box-shadow: 0 0 0 6px transparent;
     }
   }
 
@@ -427,10 +431,10 @@ body {
   /* 运行中状态点脉冲（青色） */
   @keyframes ghostStatusPulsePrimary {
     0%, 100% {
-      box-shadow: 0 0 0 0 rgba(0, 212, 255, 0.4);
+      box-shadow: 0 0 0 0 color-mix(in srgb, var(--ghost-primary) 40%, transparent);
     }
     50% {
-      box-shadow: 0 0 0 6px rgba(0, 212, 255, 0);
+      box-shadow: 0 0 0 6px transparent;
     }
   }
 
@@ -503,7 +507,7 @@ body {
 }
 
 .ant-menu-dark .ant-menu-item-selected {
-  background: rgba(0, 212, 255, 0.12) !important;
+  background: color-mix(in srgb, var(--ghost-primary) 12%, transparent) !important;
 }
 
 /* 表格 */
@@ -526,7 +530,7 @@ body {
 }
 
 .ant-table-tbody > tr:hover > td {
-  background: rgba(0, 212, 255, 0.04) !important;
+  background: color-mix(in srgb, var(--ghost-primary) 4%, transparent) !important;
 }
 
 .ant-table-expanded-row > td {
@@ -535,7 +539,7 @@ body {
 
 /* 弹窗 */
 .ant-modal-content {
-  background: var(--ghost-panel) !important;
+  background: var(--ghost-modal-bg) !important;
   backdrop-filter: blur(20px);
   border: 1px solid var(--ghost-border-strong);
   border-radius: var(--ghost-radius-lg);
@@ -563,12 +567,12 @@ body {
 .ant-btn-primary:not(:disabled) {
   background: linear-gradient(135deg, var(--ghost-primary) 0%, var(--ghost-secondary) 100%) !important;
   border: none !important;
-  box-shadow: 0 2px 8px rgba(0, 212, 255, 0.2);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--ghost-primary) 20%, transparent);
 }
 
 .ant-btn-primary:not(:disabled):hover {
   opacity: 0.9;
-  box-shadow: 0 4px 12px rgba(0, 212, 255, 0.3) !important;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--ghost-primary) 30%, transparent) !important;
 }
 
 .ant-btn-default {
@@ -607,7 +611,7 @@ body {
 .ant-input-focused,
 .ant-select-focused .ant-select-selector {
   border-color: var(--ghost-primary) !important;
-  box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.1) !important;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ghost-primary) 10%, transparent) !important;
 }
 
 /* Select 下拉 */
@@ -621,11 +625,11 @@ body {
 }
 
 .ant-select-item-option-selected {
-  background: rgba(0, 212, 255, 0.15) !important;
+  background: color-mix(in srgb, var(--ghost-primary) 15%, transparent) !important;
 }
 
 .ant-select-item-option-active {
-  background: rgba(0, 212, 255, 0.08) !important;
+  background: color-mix(in srgb, var(--ghost-primary) 8%, transparent) !important;
 }
 
 /* 描述列表 */
@@ -644,11 +648,11 @@ body {
 }
 
 .ant-alert-info {
-  border-color: rgba(0, 212, 255, 0.2) !important;
+  border-color: color-mix(in srgb, var(--ghost-primary) 20%, transparent) !important;
 }
 
 .ant-alert-error {
-  border-color: rgba(255, 107, 107, 0.2) !important;
+  border-color: color-mix(in srgb, var(--ghost-error) 20%, transparent) !important;
 }
 
 /* 空状态 */

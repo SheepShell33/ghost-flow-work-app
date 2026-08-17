@@ -12,6 +12,7 @@ import Schedules from '../pages/Schedules'
 import History from '../pages/History'
 import ErrorBoundary from './ErrorBoundary'
 import HeaderExtras from './HeaderExtras'
+import { useTheme } from '../hooks/useTheme'
 
 const { Header, Sider, Content } = Layout
 
@@ -26,6 +27,8 @@ const menuItems = [
 export default function AppLayout() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { theme } = useTheme()
+  const menuTheme = theme === 'dark' ? 'dark' : 'light'
 
   // 彩蛋：1.2 秒内连点 logo 5 次，弹出开发者昵称
   const [eggClicks, setEggClicks] = useState(0)
@@ -48,14 +51,14 @@ export default function AppLayout() {
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Sider theme="dark" width={220} breakpoint="lg" collapsedWidth={64} className="ghost-sider">
+      <Sider theme={menuTheme} width={220} breakpoint="lg" collapsedWidth={64} className="ghost-sider">
         <div className="ghost-logo" onClick={handleLogoClick} style={{ cursor: 'pointer', userSelect: 'none' }}>
           <span className="ghost-logo-user">ghost@flow</span>
           <span className="ghost-logo-path">:~$</span>
           <span className="ghost-cursor">▍</span>
         </div>
         <Menu
-          theme="dark"
+          theme={menuTheme}
           mode="inline"
           selectedKeys={[location.pathname]}
           items={menuItems}

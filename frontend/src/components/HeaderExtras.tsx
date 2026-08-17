@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Button, Tooltip } from 'antd'
 import { BulbOutlined, MoonOutlined } from '@ant-design/icons'
-import { useTheme } from '../contexts/ThemeContext'
+import { useTheme } from '../hooks/useTheme'
 import { getSchedulerStatus } from '../api/schedules'
 
 /** Header 右侧区域：调度器实时状态 + 单秒时钟 + 版本号 */
