@@ -208,3 +208,94 @@ def test_schedule_retry_failure_still_persists_run_record(db, monkeypatch):
     assert result["status"] == "failed"
     run = db.get(TaskRun, result["run_id"])
     assert run.finished_at is not None
+
+
+def test_dependent_task_triggered_on_success(db, monkeypatch):
+    """任务成功后应触发已启用的后置任务"""
+    from app.models.connection import Connection
+    conn_row = Connection(name="c", type="sqlite", config='{"file_path": "x.db"}')
+    db.add(conn_row)
+    db.commit()
+
+    task1 = _make_task(db, connection_id=conn_row.id, name="test 1")
+    task2 = _make_task(
+        db,
+        connection_id=conn_row.id,
+        name="test 2",
+        prerequisite_task_id=task1.id,
+        enabled=True,
+    )
+
+    monkeypatch.setattr(
+        "app.services.task_runner.execute_sql",
+        lambda *a, **k: pd.DataFrame({"a": [1]}),
+    )
+    triggered = []
+    monkeypatch.setattr(
+        "app.services.scheduler.trigger_task_now",
+        lambda task_id: triggered.append(task_id),
+    )
+
+    result = run_task(task1, db)
+    assert result["status"] == "success"
+    assert triggered == [task2.id]
+
+
+def test_dependent_task_not_triggered_on_failure(db, monkeypatch):
+    """任务失败后不应触发后置任务"""
+    from app.models.connection import Connection
+    conn_row = Connection(name="c", type="sqlite", config='{"file_path": "x.db"}')
+    db.add(conn_row)
+    db.commit()
+
+    task1 = _make_task(db, connection_id=conn_row.id, name="test 1")
+    task2 = _make_task(
+        db,
+        connection_id=conn_row.id,
+        name="test 2",
+        prerequisite_task_id=task1.id,
+        enabled=True,
+    )
+
+    monkeypatch.setattr("app.services.task_runner.execute_sql", _boom)
+    monkeypatch.setattr("app.services.scheduler.schedule_retry", lambda *a, **k: None)
+    triggered = []
+    monkeypatch.setattr(
+        "app.services.scheduler.trigger_task_now",
+        lambda task_id: triggered.append(task_id),
+    )
+
+    result = run_task(task1, db)
+    assert result["status"] == "failed"
+    assert triggered == []
+
+
+def test_disabled_dependent_task_not_triggered(db, monkeypatch):
+    """禁用的后置任务不应被触发"""
+    from app.models.connection import Connection
+    conn_row = Connection(name="c", type="sqlite", config='{"file_path": "x.db"}')
+    db.add(conn_row)
+    db.commit()
+
+    task1 = _make_task(db, connection_id=conn_row.id, name="test 1")
+    task2 = _make_task(
+        db,
+        connection_id=conn_row.id,
+        name="test 2",
+        prerequisite_task_id=task1.id,
+        enabled=False,  # 禁用
+    )
+
+    monkeypatch.setattr(
+        "app.services.task_runner.execute_sql",
+        lambda *a, **k: pd.DataFrame({"a": [1]}),
+    )
+    triggered = []
+    monkeypatch.setattr(
+        "app.services.scheduler.trigger_task_now",
+        lambda task_id: triggered.append(task_id),
+    )
+
+    result = run_task(task1, db)
+    assert result["status"] == "success"
+    assert triggered == []

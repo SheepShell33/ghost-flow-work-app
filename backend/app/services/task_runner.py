@@ -39,6 +39,25 @@ def check_prerequisite(task: Task, db: Session) -> str | None:
     return None
 
 
+def _trigger_dependent_tasks(task: Task, db: Session) -> None:
+    """当前任务成功后，触发所有以它为前置任务且已启用的后置任务。"""
+    dependents = (
+        db.query(Task)
+        .filter(Task.prerequisite_task_id == task.id, Task.enabled == True)
+        .all()
+    )
+    if not dependents:
+        return
+    # 惰性导入避免循环依赖
+    from .scheduler import trigger_task_now
+    for dep in dependents:
+        logger.info(f"task {task.id} succeeded, triggering dependent task {dep.id}")
+        try:
+            trigger_task_now(dep.id)
+        except Exception:
+            logger.exception(f"task {task.id} trigger dependent task {dep.id} failed")
+
+
 def run_task(task: Task, db: Session, attempt: int = 1,
              parent_run_id: int | None = None, max_rows: int = 20) -> dict:
     err = check_prerequisite(task, db)
@@ -142,6 +161,10 @@ def run_task(task: Task, db: Session, attempt: int = 1,
                 # 调度失败（如 jobstore 故障）不应阻断运行记录落库，
                 # 仅记录异常；重试说明保留，因为 job 可能已部分注册
                 logger.exception(f"task {task.id} schedule retry failed")
+
+        # 成功后触发后置任务：查找所有以当前任务为前置任务且已启用的任务
+        if run_record.status == "success":
+            _trigger_dependent_tasks(task, db)
 
         run_record.finished_at = datetime.now(timezone.utc)
         db.commit()

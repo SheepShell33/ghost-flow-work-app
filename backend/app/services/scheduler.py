@@ -1,4 +1,5 @@
 import json
+import uuid
 from datetime import datetime, timedelta, timezone
 
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
@@ -145,3 +146,22 @@ def schedule_retry(task_id: int, attempt: int, delay_seconds: int, parent_run_id
         misfire_grace_time=3600,
     )
     logger.info(f"scheduled retry for task {task_id}, attempt {attempt} at {run_date}")
+
+
+def trigger_task_now(task_id: int):
+    """立即调度一次任务执行（用于前置任务成功后触发后置任务）。"""
+    if not _scheduler:
+        logger.warning(f"scheduler 未运行，后置任务 {task_id} 无法触发")
+        return
+    # 延迟 1 秒，避免当前运行记录尚未 commit、内存锁未释放导致后置任务被跳过
+    run_date = datetime.now(timezone.utc) + timedelta(seconds=1)
+    _scheduler.add_job(
+        _run_task_job,
+        trigger="date",
+        run_date=run_date,
+        id=f"trigger_task_{task_id}_{uuid.uuid4().hex}",
+        args=[task_id],
+        replace_existing=False,
+        misfire_grace_time=3600,
+    )
+    logger.info(f"triggered dependent task {task_id} at {run_date}")
