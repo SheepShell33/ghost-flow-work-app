@@ -1,6 +1,6 @@
 import { app, BrowserWindow, Tray, Menu, dialog, nativeImage, ipcMain } from 'electron'
 import { autoUpdater } from 'electron-updater'
-import { spawn, execFileSync, ChildProcessWithoutNullStreams } from 'child_process'
+import { spawn, execFileSync, execSync, ChildProcessWithoutNullStreams } from 'child_process'
 import path from 'path'
 import fs from 'fs'
 import axios from 'axios'
@@ -56,9 +56,38 @@ function killProcessTree(pid: number) {
   }
 }
 
+// 查找监听指定端口的进程 PID（仅 Windows）
+function findListenerPid(port: number): number | null {
+  if (process.platform !== 'win32') return null
+  try {
+    const output = execSync(`netstat -ano | findstr :${port}`, {
+      windowsHide: true,
+      encoding: 'utf-8',
+      timeout: 5000,
+    })
+    // 输出示例：TCP    127.0.0.1:17892    0.0.0.0:0    LISTENING    1234
+    const lines = output.split(/\r?\n/)
+    for (const line of lines) {
+      if (!line.includes('LISTENING')) continue
+      const parts = line.trim().split(/\s+/)
+      const pid = parseInt(parts[parts.length - 1], 10)
+      if (!isNaN(pid) && pid > 0) return pid
+    }
+  } catch {
+    // 没有监听进程或命令失败
+  }
+  return null
+}
+
 // 启动前清理上次异常退出残留的后端进程（否则端口被占，新后端绑定失败退出码 3）
 function killStaleBackends() {
   if (process.platform !== 'win32') return
+  // 优先按端口 PID 杀：能精准命中真正占用端口的进程（包括 PyInstaller 子进程）
+  const pid = findListenerPid(BACKEND_PORT)
+  if (pid) {
+    killProcessTree(pid)
+  }
+  // 兜底：按映像名清理，处理未监听但进程仍存活的情况
   try {
     execFileSync('taskkill', ['/IM', 'ghost-flow-backend.exe', '/T', '/F'], { windowsHide: true, stdio: 'ignore' })
   } catch {
@@ -181,17 +210,15 @@ async function startBackend(): Promise<boolean> {
 
   // 上次异常退出可能残留后端进程占用端口（不能复用：前端静态资源由后端托管，
   // 残留旧版本会导致界面与服务端版本不一致），先按进程树清理并等待端口释放
-  if (await isBackendAlive()) {
-    killStaleBackends()
-    const start = Date.now()
-    while (await isBackendAlive()) {
-      if (Date.now() - start > 10000) {
-        dialog.showErrorBox('后端端口被占用', `端口 ${BACKEND_PORT} 上的残留后端进程无法终止，请手动结束后重试。`)
-        app.quit()
-        return false
-      }
-      await new Promise((resolve) => setTimeout(resolve, 300))
+  killStaleBackends()
+  const cleanupStart = Date.now()
+  while ((await isBackendAlive()) || findListenerPid(BACKEND_PORT) !== null) {
+    if (Date.now() - cleanupStart > 10000) {
+      dialog.showErrorBox('后端端口被占用', `端口 ${BACKEND_PORT} 上的残留后端进程无法终止，请手动结束后重试。`)
+      app.quit()
+      return false
     }
+    await new Promise((resolve) => setTimeout(resolve, 300))
   }
 
   return new Promise((resolve) => {

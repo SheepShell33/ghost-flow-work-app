@@ -1,9 +1,23 @@
 import ast
 import importlib.metadata
+import shutil
 import subprocess
 import sys
 
 from loguru import logger
+
+
+def _is_frozen_app() -> bool:
+    return getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS")
+
+
+def _find_system_python() -> str | None:
+    """在 PATH 中查找可用的系统 Python 解释器（打包环境 fallback）。"""
+    for cmd in ("python3", "python"):
+        path = shutil.which(cmd)
+        if path:
+            return path
+    return None
 
 # 导入名 → pip 包名映射（导入名与包名不一致的常见包）
 IMPORT_TO_PACKAGE: dict[str, str] = {
@@ -61,6 +75,8 @@ def ensure_dependencies(code: str) -> list[str]:
     """检查 Python 代码的依赖，自动安装缺失的包，返回安装列表。
 
     安装失败时抛出 RuntimeError（消息含 pip stderr 摘要），不再静默跳过。
+    在 PyInstaller onefile 打包环境下，sys.executable 指向后端可执行文件本身，不能直接用
+    作 pip 解释器，因此优先查找系统 Python；找不到时提示用户预装依赖或改用开发模式运行。
     """
     imports = _parse_imports(code)
     # 先过滤标准库，再做导入名 → 包名映射并去重
@@ -72,11 +88,21 @@ def ensure_dependencies(code: str) -> list[str]:
     if not need_install:
         return []
 
+    pip_python = sys.executable
+    if _is_frozen_app():
+        system_python = _find_system_python()
+        if system_python is None:
+            raise RuntimeError(
+                f"打包版暂不支持自动安装第三方依赖：{', '.join(need_install)}。"
+                "请使用系统 Python 预装这些包，或在开发模式下运行后端。"
+            )
+        pip_python = system_python
+
     installed = []
     for pkg in need_install:
         try:
             result = subprocess.run(
-                [sys.executable, "-m", "pip", "install", pkg],
+                [pip_python, "-m", "pip", "install", pkg],
                 capture_output=True, text=True, timeout=120,
             )
         except Exception as e:
