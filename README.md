@@ -5,7 +5,7 @@
 ## 功能列表
 
 - **连接管理**：保存 SQLite / Redshift 数据库连接配置，结构化表单按认证方式动态展示字段，支持"测试连接"（`POST /api/connections/test`）。
-- **任务管理**：创建 SQL / Python 任务，支持标签筛选、前置任务依赖（`prerequisite_task_id`）、上传 `.sql` / `.py` 文件自动建任务。
+- **任务管理**：创建 SQL / Python 任务，支持标签筛选、前置任务依赖（`prerequisite_task_id`）、上传 `.sql` / `.py` 文件自动建任务；前置任务成功后会自动触发后置任务，支持多级任务链。
 - **调度管理**：基于 APScheduler + SQLAlchemyJobStore 的 Cron 定时调度，任务级启停。
 - **执行历史**：完整记录每次运行（状态、行数、耗时、错误信息），运行中的任务可真正取消（终止 Python 子进程 / SQL 执行线程）。
 - **数据预览与 CSV 导出**：SQL 任务预览前 100 行，支持导出到服务器路径或直接下载 CSV。
@@ -277,7 +277,53 @@ uv run alembic stamp head     # 已有库手动标记为最新版本
 
 > 说明：调度配置内嵌在任务模型中，启停通过 `/api/tasks/{id}/toggle` 控制；`/api/schedules` 仅提供只读列表与状态。
 
-### 5. 查看历史与导出 CSV
+### 5. 前置任务链式触发
+
+前置任务不仅可以用于“运行前检查”，还支持**成功后自动触发后置任务**，并形成多级传导链。
+
+#### 示例：test 1 → test 2 → test 3
+
+假设需要三个任务依次执行：test 1 定时拉取原始数据，test 2 在 test 1 成功后清洗数据，test 3 在 test 2 成功后生成报表。
+
+**步骤 1：创建 test 1（定时任务）**
+
+1. 进入 **「任务管理」** → 点击「新建任务」。
+2. 填写任务名称 `test 1`，选择任务类型（SQL 或 Python），填写代码。
+3. 展开 **「定时调度配置」**：
+   - Cron 表达式：`0 9 * * *`（每天早上 9 点）。
+   - 时区：`Asia/Shanghai`。
+   - 打开 **「启用调度」** 开关。
+4. 点击「创建」。
+
+**步骤 2：创建 test 2（前置任务 = test 1）**
+
+1. 点击「新建任务」，填写名称 `test 2` 与代码。
+2. **前置任务** 下拉框选择 `#<test 1 id> test 1`。
+3. **不要设置 Cron 表达式**，保持「启用调度」关闭（test 2 由 test 1 成功触发）。
+4. 但需确保 **任务状态为启用**（任务列表中 test 2 的启用开关打开；只有 `enabled=true` 的后置任务才会被自动触发）。
+5. 点击「创建」。
+
+**步骤 3：创建 test 3（前置任务 = test 2）**
+
+1. 点击「新建任务」，填写名称 `test 3` 与代码。
+2. **前置任务** 下拉框选择 `#<test 2 id> test 2`。
+3. 同样不设置 Cron 表达式，保持启用状态。
+4. 点击「创建」。
+
+**运行效果**
+
+- 每天早上 9 点，test 1 按 Cron 规则执行。
+- test 1 运行成功后，系统自动调度 test 2 执行（延迟约 1 秒，避免事务/锁冲突）。
+- test 2 运行成功后，系统自动调度 test 3 执行。
+- 如果链中任意任务失败，后续任务不会继续触发；失败任务可按配置自动重试，重试成功后再触发后续任务。
+
+**注意事项**
+
+- 后置任务必须 `enabled=true`，否则不会被自动触发。
+- 后置任务无需设置自己的 Cron 调度；如果同时设置了 Cron，则它既会按 Cron 执行，也会在前置任务成功时被触发。
+- 避免配置循环依赖（如 test 3 的前置任务再指向 test 1），否则可能形成无限触发链。
+
+### 6. 查看历史与导出 CSV
 
 - **「运行历史」** 页面展示所有执行记录：状态、行数、开始/结束时间、错误信息。
 - SQL 任务结果可「导出」到服务器指定路径，或「下载」为本地 CSV 文件。
@@ -338,7 +384,7 @@ uv run alembic stamp head     # 已有库手动标记为最新版本
 
 或者在已有 `electron/resources/ghost-flow-backend.exe` 的前提下，只重打 Electron 部分：
 
-```bash
+```powershell
 cd electron
 pnpm dist    # 同时产出 NSIS 安装包与便携版 exe
 ```
@@ -356,9 +402,10 @@ pnpm dist    # 同时产出 NSIS 安装包与便携版 exe
 
 ### 手动分步打包
 
-```bash
+```powershell
 # 1. 前端构建并复制到后端 static
-cd frontend && pnpm build
+cd frontend
+pnpm build
 # 将 frontend/dist/* 复制到 backend/static/dist/
 
 # 2. PyInstaller 打包后端到 electron/resources/
