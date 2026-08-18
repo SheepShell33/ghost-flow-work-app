@@ -137,7 +137,7 @@ def test_attempt_and_parent_recorded(db, monkeypatch):
 def test_retry_scheduled_on_python_failure(db, monkeypatch):
     """Python 脚本 success=False（非取消）也会调度重试"""
     task = _make_task(db, type="python", content="print(1)", retry_limit=1)
-    monkeypatch.setattr("app.services.task_runner.ensure_dependencies", lambda *a, **k: None)
+    monkeypatch.setattr("app.services.task_runner.check_dependencies", lambda *a, **k: [])
     monkeypatch.setattr(
         "app.services.task_runner.execute_python",
         lambda *a, **k: {"success": False, "stdout": "", "stderr": "err", "exit_code": 1},
@@ -156,7 +156,7 @@ def test_retry_scheduled_on_python_failure(db, monkeypatch):
 def test_no_retry_on_manual_cancel(db, monkeypatch):
     """手动取消的 Python 任务不调度重试"""
     task = _make_task(db, type="python", content="print(1)", retry_limit=1)
-    monkeypatch.setattr("app.services.task_runner.ensure_dependencies", lambda *a, **k: None)
+    monkeypatch.setattr("app.services.task_runner.check_dependencies", lambda *a, **k: [])
     monkeypatch.setattr(
         "app.services.task_runner.execute_python",
         lambda *a, **k: {"success": False, "stdout": "", "stderr": "err", "exit_code": 1},

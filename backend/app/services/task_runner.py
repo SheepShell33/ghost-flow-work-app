@@ -11,7 +11,7 @@ from .executor.sql_executor import execute_sql
 from .executor.python_executor import execute_python
 from .data_preview import preview_data
 from .csv_exporter import export_to_csv
-from .deps_installer import ensure_dependencies
+from .deps_installer import check_dependencies
 from .python_env import get_effective_python
 from . import run_tracker
 from loguru import logger
@@ -124,7 +124,23 @@ def run_task(task: Task, db: Session, attempt: int = 1,
 
             else:
                 python_path = get_effective_python(db)
-                ensure_dependencies(task.content, db)
+                missing = check_dependencies(task.content, db)
+                if missing:
+                    run_record.status = "failed"
+                    run_record.error_message = (
+                        f"当前 Python 环境缺少以下包，请先安装后再执行：{', '.join(missing)}"
+                    )
+                    run_record.finished_at = datetime.now(timezone.utc)
+                    db.commit()
+                    db.refresh(run_record)
+                    return {
+                        "run_id": run_record.id,
+                        "status": "failed",
+                        "error_message": run_record.error_message,
+                        "result_preview": None,
+                        "row_count": None,
+                    }
+
                 result = execute_python(
                     task.content,
                     timeout=task.timeout_seconds or 60,

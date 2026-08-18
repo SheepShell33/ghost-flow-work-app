@@ -18,8 +18,19 @@ export interface SettingsTestResult {
   message: string
 }
 
+export interface InstalledPackage {
+  name: string
+  version: string
+}
+
+export interface InstalledPackagesResult {
+  packages: InstalledPackage[]
+}
+
 export const getSettings = () => client.get<Settings>('/settings').then(r => r.data)
 export const updateSettings = (data: SettingsUpdate) =>
   client.put<Settings>('/settings', data).then(r => r.data)
 export const testSettings = (data: SettingsUpdate) =>
   client.post<SettingsTestResult>('/settings/test', data).then(r => r.data)
+export const getInstalledPackages = () =>
+  client.get<InstalledPackagesResult>('/settings/packages').then(r => r.data)

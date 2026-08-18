@@ -1,11 +1,16 @@
 import { useEffect, useState } from 'react'
-import { Button, Card, Form, Input, message, Space, Tag } from 'antd'
-import { getSettings, testSettings, updateSettings } from '../../api/settings'
+import { Button, Card, Form, Input, message, Space, Table, Tag } from 'antd'
+import { ReloadOutlined } from '@ant-design/icons'
+import { getInstalledPackages, getSettings, testSettings, updateSettings } from '../../api/settings'
+import type { InstalledPackage } from '../../api/settings'
 
 export default function Settings() {
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
   const [saved, setSaved] = useState({ python_ok: false, uv_ok: false })
+  const [packages, setPackages] = useState<InstalledPackage[]>([])
+  const [packagesLoading, setPackagesLoading] = useState(false)
+  const [packagesError, setPackagesError] = useState('')
 
   useEffect(() => {
     const load = async () => {
@@ -15,6 +20,23 @@ export default function Settings() {
     }
     load()
   }, [form])
+
+  const loadPackages = async () => {
+    setPackagesLoading(true)
+    setPackagesError('')
+    try {
+      const data = await getInstalledPackages()
+      setPackages(data.packages)
+    } catch (e) {
+      setPackagesError(e instanceof Error ? e.message : '加载失败')
+    } finally {
+      setPackagesLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadPackages()
+  }, [])
 
   const handleTest = async () => {
     const values = await form.validateFields()
@@ -42,13 +64,14 @@ export default function Settings() {
       })
       setSaved({ python_ok: data.python_ok, uv_ok: data.uv_ok })
       message.success('保存成功')
+      loadPackages()
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <Card title="系统设置">
+    <Card title="系统设置" className="ghost-card ghost-card-enter">
       <Form form={form} layout="vertical">
         <Form.Item
           label="Python 解释器路径"
@@ -72,6 +95,39 @@ export default function Settings() {
           uv {saved.uv_ok ? '可用' : '不可用'}
         </Tag>
       </div>
+
+      <Card
+        title="已安装 Python 包"
+        size="small"
+        className="ghost-card"
+        style={{ marginTop: 24 }}
+        extra={
+          <Button
+            type="text"
+            icon={<ReloadOutlined />}
+            loading={packagesLoading}
+            onClick={loadPackages}
+          >
+            刷新
+          </Button>
+        }
+      >
+        {packagesError ? (
+          <Tag color="error">{packagesError}</Tag>
+        ) : (
+          <Table
+            rowKey="name"
+            size="small"
+            loading={packagesLoading}
+            dataSource={packages}
+            pagination={{ pageSize: 10, showSizeChanger: false }}
+            columns={[
+              { title: '包名', dataIndex: 'name', key: 'name' },
+              { title: '版本', dataIndex: 'version', key: 'version', width: 120 },
+            ]}
+          />
+        )}
+      </Card>
     </Card>
   )
 }

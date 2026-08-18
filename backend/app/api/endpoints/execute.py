@@ -11,7 +11,7 @@ from ...models.task_run import TaskRun
 from ...services.data_preview import preview_data
 from ...services.executor.sql_executor import execute_sql
 from ...services.executor.python_executor import execute_python
-from ...services.deps_installer import ensure_dependencies
+from ...services.deps_installer import check_dependencies
 from ...services.python_env import get_effective_python
 from ...services.task_runner import run_task, check_prerequisite
 from ...services import run_tracker
@@ -49,10 +49,14 @@ def execute_adhoc_sql(req: SQLExecuteRequest, db: Session = Depends(get_db)):
 def execute_adhoc_python(req: PythonExecuteRequest, db: Session = Depends(get_db)):
     try:
         python_path = get_effective_python(db)
-        ensure_dependencies(req.code, db)
     except Exception as e:
-        # 依赖安装失败（RuntimeError 等）需把可读的错误信息返回给前端
         raise HTTPException(status_code=400, detail=str(e))
+    missing = check_dependencies(req.code, db)
+    if missing:
+        raise HTTPException(
+            status_code=400,
+            detail=f"当前 Python 环境缺少以下包，请先安装后再执行：{', '.join(missing)}",
+        )
     return execute_python(req.code, timeout=req.timeout, python_path=python_path)
 
 
@@ -86,7 +90,12 @@ def test_task(task_id: int, db: Session = Depends(get_db)):
             return preview_data(df, max_rows=20)
         else:
             python_path = get_effective_python(db)
-            ensure_dependencies(task.content, db)
+            missing = check_dependencies(task.content, db)
+            if missing:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"当前 Python 环境缺少以下包，请先安装后再执行：{', '.join(missing)}",
+                )
             # 超时使用任务配置，未配置时默认 60 秒
             result = execute_python(
                 task.content,

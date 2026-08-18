@@ -125,3 +125,27 @@ def get_effective_python(db: Session) -> str:
             "打包版未配置 Python 解释器路径，请在“系统设置”中配置可用的 Python 环境。"
         )
     return sys.executable
+
+
+def list_installed_packages(python_path: str) -> list[dict[str, str]]:
+    """列出指定 Python 环境中已安装的第三方包及其版本。
+
+    使用 `pip list --format=json` 获取；若调用失败则返回空列表。
+    """
+    try:
+        proc = subprocess.run(
+            [python_path, "-m", "pip", "list", "--format=json"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if proc.returncode != 0:
+            return []
+        import json
+        data = json.loads(proc.stdout)
+        return sorted(
+            [{"name": item["name"], "version": item["version"]} for item in data],
+            key=lambda x: x["name"].lower(),
+        )
+    except Exception:
+        return []

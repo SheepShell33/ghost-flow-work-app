@@ -4,10 +4,17 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from ...core.database import get_db
-from ...schemas.setting import SettingResponse, SettingTestResponse, SettingUpdate
+from ...schemas.setting import (
+    InstalledPackagesResponse,
+    SettingResponse,
+    SettingTestResponse,
+    SettingUpdate,
+)
 from ...services.python_env import (
     get_configured_python,
+    get_effective_python,
     get_or_create_settings,
+    list_installed_packages,
     validate_python_env,
 )
 
@@ -45,3 +52,9 @@ def update_settings(req: SettingUpdate, db: Session = Depends(get_db)):
 def test_settings(req: SettingUpdate):
     path = req.python_executable_path.strip() if req.python_executable_path else None
     return SettingTestResponse(**validate_python_env(path))
+
+
+@router.get("/packages", response_model=InstalledPackagesResponse)
+def get_installed_packages(db: Session = Depends(get_db)):
+    python_path = get_effective_python(db)
+    return InstalledPackagesResponse(packages=list_installed_packages(python_path))

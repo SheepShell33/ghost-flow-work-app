@@ -1,6 +1,5 @@
-"""deps_installer 导入名映射、标准库过滤与安装失败行为测试"""
+"""deps_installer 导入名映射、标准库过滤与缺失检查测试"""
 
-from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -9,94 +8,59 @@ from app.services import deps_installer, python_env
 
 
 def test_import_to_package_mapping():
-    """映射表命中：import sklearn / yaml 应安装 scikit-learn / pyyaml"""
+    """映射表命中：import sklearn / yaml 应识别为 scikit-learn / pyyaml"""
     code = "import sklearn\nimport yaml\nimport pandas"
     with (
         patch.object(deps_installer, "_is_installed", return_value=False),
         patch.object(deps_installer, "get_effective_python", return_value="/usr/bin/python3"),
-        patch.object(deps_installer, "resolve_uv_executable", return_value="/usr/bin/uv"),
-        patch.object(deps_installer.subprocess, "run") as mock_run,
     ):
-        mock_run.return_value = SimpleNamespace(returncode=0, stdout="", stderr="")
-        installed = deps_installer.ensure_dependencies(code, MagicMock())
+        missing = deps_installer.check_dependencies(code, MagicMock())
 
-    assert sorted(installed) == ["pandas", "pyyaml", "scikit-learn"]
-    pip_targets = [call.args[0][-1] for call in mock_run.call_args_list]
-    assert sorted(pip_targets) == ["pandas", "pyyaml", "scikit-learn"]
+    assert sorted(missing) == ["pandas", "pyyaml", "scikit-learn"]
 
 
 def test_stdlib_filtered():
-    """标准库不触发安装"""
+    """标准库不进入缺失检查"""
     code = "import os\nimport json\nfrom pathlib import Path"
-    with patch.object(deps_installer.subprocess, "run") as mock_run:
-        assert deps_installer.ensure_dependencies(code, MagicMock()) == []
-        mock_run.assert_not_called()
+    with patch.object(deps_installer, "_is_installed") as mock_is_installed:
+        assert deps_installer.check_dependencies(code, MagicMock()) == []
+        mock_is_installed.assert_not_called()
 
 
 def test_already_installed_skipped():
-    """已安装的包不重复安装"""
+    """已安装的包不进入缺失列表"""
     code = "import sklearn"
     with (
         patch.object(deps_installer, "_is_installed", return_value=True),
-        patch.object(deps_installer.subprocess, "run") as mock_run,
-    ):
-        assert deps_installer.ensure_dependencies(code, MagicMock()) == []
-        mock_run.assert_not_called()
-
-
-def test_install_failure_raises_runtime_error():
-    """uv 安装失败抛 RuntimeError，消息含 stderr 摘要"""
-    code = "import sklearn"
-    with (
-        patch.object(deps_installer, "_is_installed", return_value=False),
         patch.object(deps_installer, "get_effective_python", return_value="/usr/bin/python3"),
-        patch.object(deps_installer, "resolve_uv_executable", return_value="/usr/bin/uv"),
-        patch.object(deps_installer.subprocess, "run") as mock_run,
     ):
-        mock_run.return_value = SimpleNamespace(
-            returncode=1,
-            stdout="",
-            stderr="一些日志\nERROR: No matching distribution found for scikit-learn",
-        )
-        with pytest.raises(RuntimeError) as exc_info:
-            deps_installer.ensure_dependencies(code, MagicMock())
-
-    message = str(exc_info.value)
-    assert "scikit-learn" in message
-    assert "No matching distribution" in message
+        assert deps_installer.check_dependencies(code, MagicMock()) == []
 
 
-def test_install_subprocess_exception_raises_runtime_error():
-    """uv 调用本身异常（如超时）也抛 RuntimeError"""
+def test_missing_packages_reported():
+    """未安装的包返回在缺失列表中"""
     code = "import pandas"
     with (
         patch.object(deps_installer, "_is_installed", return_value=False),
         patch.object(deps_installer, "get_effective_python", return_value="/usr/bin/python3"),
-        patch.object(deps_installer, "resolve_uv_executable", return_value="/usr/bin/uv"),
-        patch.object(
-            deps_installer.subprocess, "run", side_effect=TimeoutError("timed out")
-        ),
     ):
-        with pytest.raises(RuntimeError, match="pandas"):
-            deps_installer.ensure_dependencies(code, MagicMock())
+        missing = deps_installer.check_dependencies(code, MagicMock())
+
+    assert missing == ["pandas"]
 
 
-def test_ensure_dependencies_uses_configured_python():
-    """ensure_dependencies 应使用 get_effective_python 返回的解释器，并用 uv 安装依赖"""
+def test_check_dependencies_uses_configured_python():
+    """check_dependencies 应使用 get_effective_python 返回的解释器检查安装状态"""
     code = "import pandas"
     fake_python = "/usr/bin/python3"
-    fake_uv = "/usr/bin/uv"
     with (
-        patch.object(deps_installer, "_is_installed", return_value=False),
-        patch.object(deps_installer, "get_effective_python", return_value=fake_python),
-        patch.object(deps_installer, "resolve_uv_executable", return_value=fake_uv),
-        patch.object(deps_installer.subprocess, "run") as mock_run,
+        patch.object(deps_installer, "_is_installed", return_value=False) as mock_is_installed,
+        patch.object(deps_installer, "get_effective_python", return_value=fake_python) as mock_get_python,
     ):
-        mock_run.return_value = SimpleNamespace(returncode=0, stdout="", stderr="")
-        deps_installer.ensure_dependencies(code, MagicMock())
+        deps_installer.check_dependencies(code, MagicMock())
 
-    cmd = mock_run.call_args[0][0]
-    assert cmd[:5] == [fake_uv, "pip", "install", "--python", fake_python]
+    mock_get_python.assert_called_once()
+    mock_is_installed.assert_called_once_with("pandas", fake_python)
 
 
 def test_frozen_app_without_configured_python_raises_runtime_error():

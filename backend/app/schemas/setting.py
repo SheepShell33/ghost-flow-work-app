@@ -19,3 +19,12 @@ class SettingTestResponse(BaseModel):
     uv_ok: bool
     uv_version: str | None
     message: str
+
+
+class InstalledPackage(BaseModel):
+    name: str
+    version: str
+
+
+class InstalledPackagesResponse(BaseModel):
+    packages: list[InstalledPackage]
