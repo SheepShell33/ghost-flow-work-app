@@ -126,7 +126,7 @@ export default function TaskForm({ initial, onSuccess }: Props) {
   return (
     <>
       <Form form={form} layout="vertical" onFinish={handleSubmit}
-        initialValues={{ type: 'sql', enabled: false, cron_tz: 'Asia/Shanghai', retry_limit: 0, retry_delay: 60 }}>
+        initialValues={{ type: 'sql', enabled: true, cron_tz: 'Asia/Shanghai', retry_limit: 0, retry_delay: 60 }}>
         <Form.Item label="上传文件（可选）">
           <Dragger
             accept=".sql,.py"
@@ -147,6 +147,11 @@ export default function TaskForm({ initial, onSuccess }: Props) {
             <Select.Option value="sql">SQL 查询</Select.Option>
             <Select.Option value="python">Python 脚本</Select.Option>
           </Select>
+        </Form.Item>
+
+        <Form.Item name="enabled" label="启用任务" valuePropName="checked"
+          tooltip="禁用后任务仍可手动运行，但不会参与定时调度，也不会被前置任务自动触发">
+          <Switch />
         </Form.Item>
 
         {taskType === 'sql' && (
@@ -201,9 +206,6 @@ export default function TaskForm({ initial, onSuccess }: Props) {
                   <Select.Option value="Asia/Shanghai">Asia/Shanghai (UTC+8)</Select.Option>
                   <Select.Option value="UTC">UTC</Select.Option>
                 </Select>
-              </Form.Item>
-              <Form.Item name="enabled" label="启用调度" valuePropName="checked">
-                <Switch />
               </Form.Item>
             </Space>
           ),
