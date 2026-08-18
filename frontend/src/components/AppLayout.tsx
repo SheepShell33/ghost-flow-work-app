@@ -3,13 +3,14 @@ import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
 import { Layout, Menu, Result, Button, Modal } from 'antd'
 import {
   DashboardOutlined, LinkOutlined, FileTextOutlined,
-  ClockCircleOutlined, HistoryOutlined,
+  ClockCircleOutlined, HistoryOutlined, SettingOutlined,
 } from '@ant-design/icons'
 import Dashboard from '../pages/Dashboard'
 import Connections from '../pages/Connections'
 import Tasks from '../pages/Tasks'
 import Schedules from '../pages/Schedules'
 import History from '../pages/History'
+import Settings from '../pages/Settings'
 import ErrorBoundary from './ErrorBoundary'
 import HeaderExtras from './HeaderExtras'
 import { useTheme } from '../hooks/useTheme'
@@ -22,6 +23,7 @@ const menuItems = [
   { key: '/tasks', icon: <FileTextOutlined />, label: '任务管理' },
   { key: '/schedules', icon: <ClockCircleOutlined />, label: '调度配置' },
   { key: '/history', icon: <HistoryOutlined />, label: '运行历史' },
+  { key: '/settings', icon: <SettingOutlined />, label: '系统设置' },
 ]
 
 export default function AppLayout() {
@@ -80,6 +82,7 @@ export default function AppLayout() {
                 <Route path="/tasks" element={<Tasks />} />
                 <Route path="/schedules" element={<Schedules />} />
                 <Route path="/history" element={<History />} />
+                <Route path="/settings" element={<Settings />} />
                 <Route path="*" element={
                   <Result status="404" title="404" subTitle="页面不存在"
                     extra={<Button type="primary" onClick={() => navigate('/')}>返回首页</Button>} />
