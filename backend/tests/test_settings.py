@@ -1,13 +1,34 @@
-"""Setting 模型测试"""
+"""Setting 模型与 /api/settings 接口测试"""
 
 from unittest.mock import patch
 
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.core.database import Base
+from app.api.endpoints.settings import router as settings_router
+from app.core.database import Base, SessionLocal
 from app.models import Setting
 from app.services.python_env import resolve_uv_executable
+
+
+# 独立的 FastAPI 应用用于接口测试，避免启动调度器等副作用
+app = FastAPI()
+app.include_router(settings_router)
+client = TestClient(app)
+
+
+def _clear_configured_python():
+    """清理配置的解释器路径，保证接口测试相互隔离。"""
+    db = SessionLocal()
+    try:
+        setting = db.get(Setting, 1)
+        if setting:
+            setting.python_executable_path = None
+            db.commit()
+    finally:
+        db.close()
 
 
 def test_setting_model_import():
@@ -75,3 +96,26 @@ def test_resolve_uv_executable_uses_resource_in_frozen_app():
         mock_sys.executable = fake_exe
         mock_sys._MEIPASS = "C:\\app\\resources\\_MEI"
         assert resolve_uv_executable() == "C:\\app\\resources\\uv.exe"
+
+
+def test_get_settings_returns_defaults(client=client):
+    """未配置时返回默认值，python_ok 为 False"""
+    _clear_configured_python()
+    res = client.get("/api/settings")
+    assert res.status_code == 200
+    assert res.json()["python_executable_path"] is None
+    assert res.json()["python_ok"] is False
+
+
+def test_update_settings_persists_path(client=client):
+    """PUT /api/settings 可持久化 Python 解释器路径"""
+    _clear_configured_python()
+    try:
+        res = client.put("/api/settings", json={"python_executable_path": "/usr/bin/python3"})
+        assert res.status_code == 200
+        assert res.json()["python_executable_path"] == "/usr/bin/python3"
+
+        res = client.get("/api/settings")
+        assert res.json()["python_executable_path"] == "/usr/bin/python3"
+    finally:
+        _clear_configured_python()

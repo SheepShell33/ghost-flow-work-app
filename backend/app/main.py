@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+from .api.endpoints import settings as settings_endpoint
 from .api.router import api_router
 from .core.config import settings
 from .core.database import init_db, SessionLocal
@@ -59,6 +60,7 @@ app.add_middleware(
 )
 
 app.include_router(api_router)
+app.include_router(settings_endpoint.router)
 
 
 @app.get("/api/health")
