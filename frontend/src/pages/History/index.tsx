@@ -15,6 +15,7 @@ export default function History() {
   const [filterTaskId, setFilterTaskId] = useState<number | undefined>()
   const [filterStatus, setFilterStatus] = useState<'all' | 'success' | 'failed' | 'running'>('all')
   const [filterRange, setFilterRange] = useState<'24h' | '7d' | '30d' | 'all'>('all')
+  const [displayTimezone, setDisplayTimezone] = useState<'UTC' | 'UTC+8'>('UTC+8')
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const pageSize = 30
@@ -70,6 +71,23 @@ export default function History() {
     return `${(diff / 1000).toFixed(1)}s`
   }
 
+  const timezoneMap: Record<'UTC' | 'UTC+8', string> = { UTC: 'UTC', 'UTC+8': 'Asia/Shanghai' }
+
+  const formatInTimezone = (isoString: string | null | undefined, opts: { withSeconds?: boolean } = {}) => {
+    if (!isoString) return '-'
+    const tz = timezoneMap[displayTimezone]
+    return new Date(isoString).toLocaleString('zh-CN', {
+      timeZone: tz,
+      year: opts.withSeconds ? 'numeric' : undefined,
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: opts.withSeconds ? '2-digit' : undefined,
+      hour12: false,
+    })
+  }
+
   const columns = [
     {
       title: 'Run ID', dataIndex: 'id', key: 'id', width: 100, fixed: 'left' as const,
@@ -113,9 +131,9 @@ export default function History() {
     { title: '行数', dataIndex: 'row_count', key: 'row_count', width: 70, align: 'right' as const, render: (v: number | null) => v ?? '-' },
     {
       title: '开始时间', dataIndex: 'started_at', key: 'started_at', width: 140,
-      render: (v: string) => v
-        ? <span className="ghost-mono" style={{ fontSize: 13 }}>{new Date(v).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
-        : '-',
+      render: (v: string) => (
+        <span className="ghost-mono" style={{ fontSize: 13 }}>{formatInTimezone(v)}</span>
+      ),
     },
     {
       title: '耗时', key: 'duration', width: 90, align: 'right' as const,
@@ -156,6 +174,10 @@ export default function History() {
           <Select.Option value="30d">近 30 天</Select.Option>
           <Select.Option value="all">全部</Select.Option>
         </Select>
+        <Select value={displayTimezone} onChange={(v) => setDisplayTimezone(v)} style={{ width: 120 }}>
+          <Select.Option value="UTC+8">UTC+8</Select.Option>
+          <Select.Option value="UTC">UTC</Select.Option>
+        </Select>
       </div>
       {filteredData.length === 0 ? (
         <Empty description="暂无运行记录，执行任务后这里会显示历史" />
@@ -180,10 +202,10 @@ export default function History() {
                   <Descriptions.Item label="尝试次数">{record.attempt ?? 1}</Descriptions.Item>
                   <Descriptions.Item label="影响行数">{record.row_count ?? '-'}</Descriptions.Item>
                   <Descriptions.Item label="开始时间">
-                    {record.started_at ? new Date(record.started_at).toLocaleString('zh-CN') : '-'}
+                    {formatInTimezone(record.started_at, { withSeconds: true })}
                   </Descriptions.Item>
                   <Descriptions.Item label="结束时间">
-                    {record.finished_at ? new Date(record.finished_at).toLocaleString('zh-CN') : '-'}
+                    {formatInTimezone(record.finished_at, { withSeconds: true })}
                   </Descriptions.Item>
                   <Descriptions.Item label="耗时">
                     {formatDuration(record.started_at, record.finished_at)}
