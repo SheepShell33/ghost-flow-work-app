@@ -235,6 +235,7 @@ async function startBackend(): Promise<boolean> {
         ...process.env,
         PORT: String(BACKEND_PORT),
         GHOST_FLOW_DATA_DIR: dataDir,
+        GHOST_FLOW_RESOURCES_DIR: process.resourcesPath,
       },
     })
 

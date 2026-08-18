@@ -1,5 +1,6 @@
 """Python 环境解析与校验服务。"""
 
+import os
 import shutil
 import subprocess
 import sys
@@ -37,11 +38,22 @@ def get_configured_python(db: Session) -> str | None:
 
 
 def resolve_uv_executable() -> str | None:
-    """解析可用的 uv 可执行文件路径。"""
+    """解析可用的 uv 可执行文件路径。
+
+    打包版运行时，Electron 通过 GHOST_FLOW_RESOURCES_DIR 把资源目录传给后端，
+    因此优先从该目录查找随包分发的 uv.exe；否则回退到 PyInstaller 临时目录或系统 PATH。
+    """
+    resources_dir = os.environ.get("GHOST_FLOW_RESOURCES_DIR")
+    if resources_dir:
+        bundled = Path(resources_dir) / "uv.exe"
+        if bundled.exists():
+            return str(bundled)
+
     if _is_frozen_app():
         bundled = Path(sys.executable).parent / "uv.exe"
         if bundled.exists():
             return str(bundled)
+
     return shutil.which("uv")
 
 

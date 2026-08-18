@@ -82,6 +82,14 @@ def test_resolve_uv_executable_uses_resource_in_frozen_app():
         assert resolve_uv_executable() == "C:\\app\\resources\\uv.exe"
 
 
+def test_resolve_uv_executable_prefers_env_resources_dir(tmp_path, monkeypatch):
+    """GHOST_FLOW_RESOURCES_DIR 存在时优先使用该目录下的 uv.exe"""
+    uv_file = tmp_path / "uv.exe"
+    uv_file.touch()
+    monkeypatch.setenv("GHOST_FLOW_RESOURCES_DIR", str(tmp_path))
+    assert resolve_uv_executable() == str(uv_file)
+
+
 @pytest.fixture
 def client():
     """提供使用独立内存 SQLite 数据库的 TestClient。"""
