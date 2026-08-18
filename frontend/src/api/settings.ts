@@ -25,6 +25,7 @@ export interface InstalledPackage {
 
 export interface InstalledPackagesResult {
   packages: InstalledPackage[]
+  error: string | null
 }
 
 export const getSettings = () => client.get<Settings>('/settings').then(r => r.data)

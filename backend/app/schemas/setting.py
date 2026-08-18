@@ -28,3 +28,4 @@ class InstalledPackage(BaseModel):
 
 class InstalledPackagesResponse(BaseModel):
     packages: list[InstalledPackage]
+    error: str | None = None

@@ -130,22 +130,24 @@ def get_effective_python(db: Session) -> str:
 def list_installed_packages(python_path: str) -> list[dict[str, str]]:
     """列出指定 Python 环境中已安装的第三方包及其版本。
 
-    使用 `pip list --format=json` 获取；若调用失败则返回空列表。
+    通过目标解释器运行 importlib.metadata，不依赖 pip；失败时抛出 RuntimeError。
     """
-    try:
-        proc = subprocess.run(
-            [python_path, "-m", "pip", "list", "--format=json"],
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
-        if proc.returncode != 0:
-            return []
-        import json
-        data = json.loads(proc.stdout)
-        return sorted(
-            [{"name": item["name"], "version": item["version"]} for item in data],
-            key=lambda x: x["name"].lower(),
-        )
-    except Exception:
-        return []
+    script = (
+        "import importlib.metadata as m, json; "
+        "print(json.dumps([{'name': d.metadata.get('Name', d.metadata.get('name', '')), "
+        "'version': d.version} for d in m.distributions()]))"
+    )
+    proc = subprocess.run(
+        [python_path, "-c", script],
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    if proc.returncode != 0:
+        raise RuntimeError(f"无法读取已安装包列表：{proc.stderr.strip() or proc.stdout.strip() or '未知错误'}")
+    import json
+    data = json.loads(proc.stdout)
+    return sorted(
+        [{"name": item["name"], "version": item["version"]} for item in data if item["name"]],
+        key=lambda x: x["name"].lower(),
+    )

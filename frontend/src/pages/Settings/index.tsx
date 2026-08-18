@@ -26,7 +26,11 @@ export default function Settings() {
     setPackagesError('')
     try {
       const data = await getInstalledPackages()
-      setPackages(data.packages)
+      if (data.error) {
+        setPackagesError(data.error)
+      } else {
+        setPackages(data.packages)
+      }
     } catch (e) {
       setPackagesError(e instanceof Error ? e.message : '加载失败')
     } finally {

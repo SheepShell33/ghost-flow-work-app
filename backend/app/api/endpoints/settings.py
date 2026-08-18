@@ -56,5 +56,9 @@ def test_settings(req: SettingUpdate):
 
 @router.get("/packages", response_model=InstalledPackagesResponse)
 def get_installed_packages(db: Session = Depends(get_db)):
-    python_path = get_effective_python(db)
-    return InstalledPackagesResponse(packages=list_installed_packages(python_path))
+    try:
+        python_path = get_effective_python(db)
+        packages = list_installed_packages(python_path)
+        return InstalledPackagesResponse(packages=packages)
+    except Exception as e:
+        return InstalledPackagesResponse(packages=[], error=str(e))
