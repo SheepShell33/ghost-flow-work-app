@@ -122,7 +122,7 @@ def run_task(task: Task, db: Session, attempt: int = 1,
                     export_to_csv(df, task.output_path)
 
             else:
-                ensure_dependencies(task.content)
+                ensure_dependencies(task.content, db)
                 result = execute_python(task.content, timeout=task.timeout_seconds or 60, run_id=run_record.id)
                 run_record.status = "success" if result["success"] else "failed"
                 if not result["success"]:

@@ -45,9 +45,9 @@ def execute_adhoc_sql(req: SQLExecuteRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/python")
-def execute_adhoc_python(req: PythonExecuteRequest):
+def execute_adhoc_python(req: PythonExecuteRequest, db: Session = Depends(get_db)):
     try:
-        ensure_dependencies(req.code)
+        ensure_dependencies(req.code, db)
     except Exception as e:
         # 依赖安装失败（RuntimeError 等）需把可读的错误信息返回给前端
         raise HTTPException(status_code=400, detail=str(e))
@@ -83,7 +83,7 @@ def test_task(task_id: int, db: Session = Depends(get_db)):
             df = execute_sql(conn, task.content, timeout=task.timeout_seconds or 300)
             return preview_data(df, max_rows=20)
         else:
-            ensure_dependencies(task.content)
+            ensure_dependencies(task.content, db)
             # 超时使用任务配置，未配置时默认 60 秒
             result = execute_python(task.content, timeout=task.timeout_seconds or 60)
             return result
