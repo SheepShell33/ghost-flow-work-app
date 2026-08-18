@@ -12,6 +12,7 @@ from .executor.python_executor import execute_python
 from .data_preview import preview_data
 from .csv_exporter import export_to_csv
 from .deps_installer import ensure_dependencies
+from .python_env import get_effective_python
 from . import run_tracker
 from loguru import logger
 
@@ -122,8 +123,14 @@ def run_task(task: Task, db: Session, attempt: int = 1,
                     export_to_csv(df, task.output_path)
 
             else:
+                python_path = get_effective_python(db)
                 ensure_dependencies(task.content, db)
-                result = execute_python(task.content, timeout=task.timeout_seconds or 60, run_id=run_record.id)
+                result = execute_python(
+                    task.content,
+                    timeout=task.timeout_seconds or 60,
+                    run_id=run_record.id,
+                    python_path=python_path,
+                )
                 run_record.status = "success" if result["success"] else "failed"
                 if not result["success"]:
                     if run_tracker.pop_cancelled(run_record.id):

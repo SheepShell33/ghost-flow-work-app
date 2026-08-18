@@ -4,8 +4,6 @@ import sys
 import tempfile
 from pathlib import Path
 
-from app.services.deps_installer import _find_system_python
-
 from ..run_tracker import register, unregister
 
 
@@ -15,46 +13,37 @@ def _is_frozen_app() -> bool:
 
 
 def _build_python_process_env(script_path: Path) -> dict[str, str]:
-    """构造执行 Python 脚本所需的环境变量。
-
-    开发模式下直接复用当前解释器；打包模式下通过系统 Python 子进程执行脚本，
-    因此不再需要将脚本路径通过 GHOST_FLOW_EXEC_SCRIPT 传回后端可执行文件。
-    """
+    """构造执行 Python 脚本所需的环境变量。"""
     return os.environ.copy()
 
 
-def _build_python_cmd(script_path: Path) -> list[str]:
-    """构造执行 Python 脚本的命令行。
+def _build_python_cmd(script_path: Path, python_path: str | None = None) -> list[str]:
+    """构造执行 Python 脚本的命令行。"""
+    return [python_path or sys.executable, str(script_path)]
 
-    开发模式下直接调用当前 Python 解释器执行脚本；打包模式下使用系统 Python 解释器，
-    确保通过 pip 安装的第三方依赖对脚本可见。
+
+def execute_python(
+    code: str,
+    timeout: int = 60,
+    run_id: int | None = None,
+    python_path: str | None = None,
+) -> dict:
+    """在指定 Python 解释器中执行代码片段。
+
+    参数:
+        code: 待执行的 Python 源码。
+        timeout: 执行超时时间（秒）。
+        run_id: 运行记录 ID，用于取消追踪；不传则不追踪。
+        python_path: 执行使用的 Python 解释器路径；未传时使用当前解释器。
     """
-    if _is_frozen_app():
-        system_python = _find_system_python()
-        if system_python is None:
-            raise RuntimeError(
-                "打包版需要可用的系统 Python 解释器才能执行 Python 任务；"
-                "未检测到可用 Python。请安装 Python 或在开发模式下运行后端。"
-            )
-        return [system_python, str(script_path)]
-    return [sys.executable, str(script_path)]
+    if python_path is None:
+        python_path = sys.executable
 
-
-def execute_python(code: str, timeout: int = 60, run_id: int | None = None) -> dict:
     with tempfile.TemporaryDirectory() as tmpdir:
         script_path = Path(tmpdir) / "_exec_script.py"
         script_path.write_text(code, encoding="utf-8")
 
-        try:
-            cmd = _build_python_cmd(script_path)
-        except RuntimeError as e:
-            return {
-                "exit_code": -1,
-                "stdout": "",
-                "stderr": str(e),
-                "success": False,
-            }
-
+        cmd = _build_python_cmd(script_path, python_path)
         process = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,

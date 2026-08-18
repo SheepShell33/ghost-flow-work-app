@@ -12,6 +12,7 @@ from ...services.data_preview import preview_data
 from ...services.executor.sql_executor import execute_sql
 from ...services.executor.python_executor import execute_python
 from ...services.deps_installer import ensure_dependencies
+from ...services.python_env import get_effective_python
 from ...services.task_runner import run_task, check_prerequisite
 from ...services import run_tracker
 
@@ -47,11 +48,12 @@ def execute_adhoc_sql(req: SQLExecuteRequest, db: Session = Depends(get_db)):
 @router.post("/python")
 def execute_adhoc_python(req: PythonExecuteRequest, db: Session = Depends(get_db)):
     try:
+        python_path = get_effective_python(db)
         ensure_dependencies(req.code, db)
     except Exception as e:
         # 依赖安装失败（RuntimeError 等）需把可读的错误信息返回给前端
         raise HTTPException(status_code=400, detail=str(e))
-    return execute_python(req.code, timeout=req.timeout)
+    return execute_python(req.code, timeout=req.timeout, python_path=python_path)
 
 
 @router.post("/tasks/{task_id}/run")
@@ -83,9 +85,14 @@ def test_task(task_id: int, db: Session = Depends(get_db)):
             df = execute_sql(conn, task.content, timeout=task.timeout_seconds or 300)
             return preview_data(df, max_rows=20)
         else:
+            python_path = get_effective_python(db)
             ensure_dependencies(task.content, db)
             # 超时使用任务配置，未配置时默认 60 秒
-            result = execute_python(task.content, timeout=task.timeout_seconds or 60)
+            result = execute_python(
+                task.content,
+                timeout=task.timeout_seconds or 60,
+                python_path=python_path,
+            )
             return result
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
