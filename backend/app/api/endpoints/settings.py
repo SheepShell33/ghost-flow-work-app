@@ -29,7 +29,7 @@ def get_settings(db: Session = Depends(get_db)):
 def update_settings(req: SettingUpdate, db: Session = Depends(get_db)):
     setting = get_or_create_settings(db)
     value = req.python_executable_path
-    setting.python_executable_path = value.strip() if value else None
+    setting.python_executable_path = (value.strip() or None) if value else None
     db.commit()
     db.refresh(setting)
     path = get_configured_python(db)

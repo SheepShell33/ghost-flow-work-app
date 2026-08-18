@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 from loguru import logger
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
 from ..models.setting import Setting
@@ -20,11 +21,17 @@ def _is_frozen_app() -> bool:
 def get_or_create_settings(db: Session) -> Setting:
     """获取或创建 id 为 1 的系统设置记录。"""
     setting = db.get(Setting, 1)
-    if setting is None:
-        setting = Setting(id=1)
-        db.add(setting)
-        db.commit()
-        db.refresh(setting)
+    if setting is not None:
+        return setting
+    db.execute(
+        sqlite_insert(Setting)
+        .values(id=1)
+        .on_conflict_do_nothing(index_elements=["id"])
+    )
+    db.commit()
+    setting = db.get(Setting, 1)
+    if setting is None:  # pragma: no cover
+        raise RuntimeError("无法创建 settings 记录")
     return setting
 
 
@@ -41,16 +48,11 @@ def resolve_uv_executable() -> str | None:
     """解析可用的 uv 可执行文件路径。
 
     打包版运行时，Electron 通过 GHOST_FLOW_RESOURCES_DIR 把资源目录传给后端，
-    因此优先从该目录查找随包分发的 uv.exe；否则回退到 PyInstaller 临时目录或系统 PATH。
+    因此优先从该目录查找随包分发的 uv.exe；否则回退到系统 PATH 中的 uv。
     """
     resources_dir = os.environ.get("GHOST_FLOW_RESOURCES_DIR")
     if resources_dir:
         bundled = Path(resources_dir) / "uv.exe"
-        if bundled.exists():
-            return str(bundled)
-
-    if _is_frozen_app():
-        bundled = Path(sys.executable).parent / "uv.exe"
         if bundled.exists():
             return str(bundled)
 
