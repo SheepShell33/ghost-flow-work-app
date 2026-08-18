@@ -15,7 +15,7 @@ export default function History() {
   const [filterTaskId, setFilterTaskId] = useState<number | undefined>()
   const [filterStatus, setFilterStatus] = useState<'all' | 'success' | 'failed' | 'running'>('all')
   const [filterRange, setFilterRange] = useState<'24h' | '7d' | '30d' | 'all'>('all')
-  const [displayTimezone, setDisplayTimezone] = useState<'UTC' | 'UTC+8'>('UTC+8')
+  const [displayTimezone, setDisplayTimezone] = useState<'UTC' | 'UTC+8'>('UTC')
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const pageSize = 30
