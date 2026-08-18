@@ -6,7 +6,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-from loguru import logger
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 

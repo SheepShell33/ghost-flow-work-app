@@ -1,19 +1,13 @@
 import sys
 from pathlib import Path
-from unittest import mock
 
 import pytest
 
 from app.services.executor.python_executor import (
     _build_python_cmd,
     _build_python_process_env,
-    _is_frozen_app,
     execute_python,
 )
-
-
-def test_is_frozen_app_in_normal_environment():
-    assert _is_frozen_app() is False
 
 
 def test_build_python_cmd_in_normal_environment(tmp_path: Path):
@@ -28,39 +22,9 @@ def test_build_python_cmd_uses_provided_python_path(tmp_path: Path):
     assert cmd == ["/usr/bin/python3", str(script_path)]
 
 
-def test_build_python_cmd_in_frozen_app_uses_provided_python_path(tmp_path: Path):
-    script_path = tmp_path / "test.py"
-    with (
-        mock.patch.object(sys, "frozen", True, create=True),
-        mock.patch.object(sys, "_MEIPASS", str(tmp_path), create=True),
-    ):
-        cmd = _build_python_cmd(script_path, python_path="/usr/bin/python3")
-    assert cmd == ["/usr/bin/python3", str(script_path)]
-
-
-def test_build_python_cmd_in_frozen_app_defaults_to_sys_executable(tmp_path: Path):
-    script_path = tmp_path / "test.py"
-    with (
-        mock.patch.object(sys, "frozen", True, create=True),
-        mock.patch.object(sys, "_MEIPASS", str(tmp_path), create=True),
-    ):
-        cmd = _build_python_cmd(script_path)
-    assert cmd == [sys.executable, str(script_path)]
-
-
 def test_build_python_process_env_in_normal_environment(tmp_path: Path):
     script_path = tmp_path / "test.py"
     env = _build_python_process_env(script_path)
-    assert "GHOST_FLOW_EXEC_SCRIPT" not in env
-
-
-def test_build_python_process_env_in_frozen_app(tmp_path: Path):
-    script_path = tmp_path / "test.py"
-    with (
-        mock.patch.object(sys, "frozen", True, create=True),
-        mock.patch.object(sys, "_MEIPASS", str(tmp_path), create=True),
-    ):
-        env = _build_python_process_env(script_path)
     assert "GHOST_FLOW_EXEC_SCRIPT" not in env
 
 

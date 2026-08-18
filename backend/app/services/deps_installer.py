@@ -1,5 +1,4 @@
 import ast
-import shutil
 import subprocess
 import sys
 
@@ -8,32 +7,6 @@ from sqlalchemy.orm import Session
 
 from .python_env import get_effective_python, resolve_uv_executable
 
-
-def _is_frozen_app() -> bool:
-    return getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS")
-
-
-def _is_valid_python(path: str) -> bool:
-    """验证路径对应的 Python 解释器真的可以运行（排除 Windows Store 伪别名等）。"""
-    try:
-        result = subprocess.run(
-            [path, "--version"],
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
-    except Exception:
-        return False
-    return result.returncode == 0 and result.stdout.startswith("Python ")
-
-
-def _find_system_python() -> str | None:
-    """在 PATH 中查找可用的系统 Python 解释器（打包环境 fallback）。"""
-    for cmd in ("python3", "python"):
-        path = shutil.which(cmd)
-        if path and _is_valid_python(path):
-            return path
-    return None
 
 # 导入名 → pip 包名映射（导入名与包名不一致的常见包）
 IMPORT_TO_PACKAGE: dict[str, str] = {

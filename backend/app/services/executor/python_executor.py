@@ -7,11 +7,6 @@ from pathlib import Path
 from ..run_tracker import register, unregister
 
 
-def _is_frozen_app() -> bool:
-    """判断当前是否运行在 PyInstaller 等打包后的可执行文件内。"""
-    return getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS")
-
-
 def _build_python_process_env(script_path: Path) -> dict[str, str]:
     """构造执行 Python 脚本所需的环境变量。"""
     return os.environ.copy()
