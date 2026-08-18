@@ -28,13 +28,32 @@ def test_build_python_process_env_in_normal_environment(tmp_path: Path):
     assert "GHOST_FLOW_EXEC_SCRIPT" not in env
 
 
-def test_build_python_cmd_in_frozen_app(tmp_path: Path):
+def test_build_python_cmd_in_frozen_app_with_system_python(tmp_path: Path):
     script_path = tmp_path / "test.py"
-    with mock.patch.object(sys, "frozen", True, create=True):
-        with mock.patch.object(sys, "_MEIPASS", str(tmp_path), create=True):
-            cmd = _build_python_cmd(script_path)
-    # 打包环境下不应再传入脚本路径，由环境变量驱动
-    assert cmd == [sys.executable]
+    with (
+        mock.patch.object(sys, "frozen", True, create=True),
+        mock.patch.object(sys, "_MEIPASS", str(tmp_path), create=True),
+        mock.patch(
+            "app.services.executor.python_executor._find_system_python",
+            return_value="/usr/bin/python3",
+        ),
+    ):
+        cmd = _build_python_cmd(script_path)
+    assert cmd == ["/usr/bin/python3", str(script_path)]
+
+
+def test_build_python_cmd_in_frozen_app_without_system_python(tmp_path: Path):
+    script_path = tmp_path / "test.py"
+    with (
+        mock.patch.object(sys, "frozen", True, create=True),
+        mock.patch.object(sys, "_MEIPASS", str(tmp_path), create=True),
+        mock.patch(
+            "app.services.executor.python_executor._find_system_python",
+            return_value=None,
+        ),
+    ):
+        with pytest.raises(RuntimeError, match="打包版需要可用的系统 Python"):
+            _build_python_cmd(script_path)
 
 
 def test_build_python_process_env_in_frozen_app(tmp_path: Path):
@@ -42,7 +61,7 @@ def test_build_python_process_env_in_frozen_app(tmp_path: Path):
     with mock.patch.object(sys, "frozen", True, create=True):
         with mock.patch.object(sys, "_MEIPASS", str(tmp_path), create=True):
             env = _build_python_process_env(script_path)
-    assert env["GHOST_FLOW_EXEC_SCRIPT"] == str(script_path)
+    assert "GHOST_FLOW_EXEC_SCRIPT" not in env
 
 
 def test_execute_python_runs_simple_script():

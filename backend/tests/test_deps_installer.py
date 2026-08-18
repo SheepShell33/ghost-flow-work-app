@@ -75,6 +75,36 @@ def test_install_subprocess_exception_raises_runtime_error():
             deps_installer.ensure_dependencies(code)
 
 
+def test_find_system_python_rejects_broken_alias():
+    """应跳过 Windows Store 伪别名等无法运行的 python 可执行文件"""
+    fake_path = "C:\\WindowsApps\\python.exe"
+    with (
+        patch.object(deps_installer.shutil, "which", return_value=fake_path),
+        patch.object(deps_installer.subprocess, "run") as mock_run,
+    ):
+        mock_run.return_value = SimpleNamespace(
+            returncode=49,
+            stdout="",
+            stderr="Python was not found; run without arguments to install from the Microsoft Store",
+        )
+        assert deps_installer._find_system_python() is None
+
+
+def test_find_system_python_accepts_working_interpreter():
+    """可正常运行的 Python 解释器应被返回"""
+    fake_path = "/usr/bin/python3"
+    with (
+        patch.object(deps_installer.shutil, "which", return_value=fake_path),
+        patch.object(deps_installer.subprocess, "run") as mock_run,
+    ):
+        mock_run.return_value = SimpleNamespace(
+            returncode=0,
+            stdout="Python 3.12.0",
+            stderr="",
+        )
+        assert deps_installer._find_system_python() == fake_path
+
+
 def test_frozen_app_without_system_python_raises_runtime_error():
     """打包环境下找不到系统 Python 时，应给出明确错误而非复用后端可执行文件"""
     code = "import sklearn"
