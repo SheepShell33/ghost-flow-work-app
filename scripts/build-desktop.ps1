@@ -34,7 +34,7 @@ if (Test-Path $backendStatic) {
 New-Item -ItemType Directory -Path $backendStatic -Force | Out-Null
 Copy-Item -Path "$frontendDist\*" -Destination $backendStatic -Recurse -Force
 
-# 4. 准备 electron/resources（仅移除旧后端可执行文件，保留其他资源）
+# 4. 准备 electron/resources（仅移除旧后端可执行文件，保留其他资源，并确保 uv.exe 存在）
 Write-Host "[4/6] Preparing electron/resources..."
 if (-not (Test-Path $electronResources)) {
     New-Item -ItemType Directory -Path $electronResources -Force | Out-Null
@@ -42,6 +42,25 @@ if (-not (Test-Path $electronResources)) {
 $backendExe = Join-Path $electronResources "ghost-flow-backend.exe"
 if (Test-Path $backendExe) {
     Remove-Item $backendExe -Force
+}
+
+# 确保打包产物包含 uv.exe：优先复制本机 uv，否则下载匹配版本
+$uvDest = Join-Path $electronResources "uv.exe"
+$localUv = (Get-Command uv -ErrorAction SilentlyContinue).Source
+if ($localUv) {
+    Write-Host "使用本地 uv.exe: $localUv"
+    Copy-Item $localUv $uvDest -Force
+} else {
+    Write-Host "未找到本地 uv，开始下载 uv.exe..."
+    $uvVersion = "0.11.28"
+    $uvUrl = "https://github.com/astral-sh/uv/releases/download/$uvVersion/uv-x86_64-pc-windows-msvc.zip"
+    $zip = "$env:TEMP\uv-$uvVersion.zip"
+    Invoke-WebRequest -Uri $uvUrl -OutFile $zip
+    Expand-Archive -Path $zip -DestinationPath "$env:TEMP\uv-$uvVersion" -Force
+    Copy-Item "$env:TEMP\uv-$uvVersion\uv.exe" $uvDest -Force
+}
+if (-not (Test-Path $uvDest)) {
+    throw "uv.exe 准备失败"
 }
 
 # 5. PyInstaller 打包后端

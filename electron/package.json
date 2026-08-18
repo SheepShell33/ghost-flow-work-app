@@ -35,6 +35,10 @@
       {
         "from": "resources/ghost-flow-backend.exe",
         "to": "ghost-flow-backend.exe"
+      },
+      {
+        "from": "resources/uv.exe",
+        "to": "uv.exe"
       }
     ],
     "win": {
